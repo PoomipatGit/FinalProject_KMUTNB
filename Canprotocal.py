@@ -7,7 +7,7 @@ class Charger:
 	def __init__(self):
 		self.id_bin = []
 		self.History_log=[]
-	#display
+	#display all
 		self.number = ""
 		self.ID_display = ""
 		self.Data_display = ""

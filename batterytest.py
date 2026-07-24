@@ -4,8 +4,8 @@ class BatteryTestpage:
 	def __init__(self, battery_test):
 		self.battery_test = battery_test
 		self.battery_test.title("Battery Test")
-		self.bgcolor1 = "#9476FF"
-		self.bgcolor2 = "#2e0771"
+		self.bgcolor1 = "#a67dc9"
+		self.bgcolor2 = "#573172"
         #Variables capacity
 		self.ah_current = 0.0
 		self.wh_current = 0.0
