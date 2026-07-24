@@ -1,6 +1,8 @@
 import tkinter as tk
 from tkinter import ttk
 class homePage(tk.Frame):
+    lebel_color = "#8056a5"
+    button_color = "#573172"
     def __init__(self, parent, controller):
         super().__init__(parent, bg="#ffffff")
         self.controller = controller
@@ -20,7 +22,7 @@ class homePage(tk.Frame):
         #remove this later 
         for row in range(3):
             for col in range(3):
-                cell_frame = tk.Frame(grid_container, bg="#E52222") # White background for the cell
+                cell_frame = tk.Frame(grid_container, bg="#D5B6B6") # White background for the cell
                 cell_frame.grid(
                     row=row, 
                     column=col, 
@@ -39,13 +41,13 @@ class homePage(tk.Frame):
         #Welcome label================================================================================================
 
         Welcome_label = tk.Label(cell_split_frame_TL, text="Welcome", 
-                                font=("Helvetica", 12, "bold"), bg="#4e56b8", fg="white",width=30)
+                                font=("Helvetica", 12, "bold"), bg= self.lebel_color , fg="white",width=30)
         Welcome_label.grid(row=0, column=0, sticky="nsew", padx=5, pady=5)
         #Welcome label================================================================================================
               
         #system stage=================================================================================================
 
-        stage_row_container = tk.Frame(cell_split_frame_TL, bg="#5862c0")
+        stage_row_container = tk.Frame(cell_split_frame_TL, bg=self.lebel_color)
         stage_row_container.grid(row=1, column=0, sticky="nsew", padx=5, pady=5)
         stage_row_container.grid_rowconfigure(0, weight=1)
         stage_row_container.grid_columnconfigure(0, weight=1)  # Space to the left
@@ -54,11 +56,11 @@ class homePage(tk.Frame):
         stage_row_container.grid_columnconfigure(3, weight=1)
 
         lbl_title = tk.Label(stage_row_container, text="System stage : ", 
-                             font=("Helvetica", 12, "bold"), bg="#5862c0", fg="white")
+                             font=("Helvetica", 12, "bold"), bg= self.lebel_color , fg="white")
         lbl_title.grid(row=0, column=1, sticky="e")
 
         self.lbl_stage_value = tk.Label(stage_row_container, text="--", 
-                                        font=("Helvetica", 12, "bold"), bg="#5862c0", fg="#ff3333")
+                                        font=("Helvetica", 12, "bold"), bg= self.lebel_color , fg="#eed2d2")
         self.lbl_stage_value.grid(row=0, column=2, sticky="w")
 
        
@@ -69,7 +71,7 @@ class homePage(tk.Frame):
         cell_split_frame_ML.grid_rowconfigure((0, 1), weight=2)
         cell_split_frame_ML.grid_columnconfigure(0, weight=1)
         #Error warning=================================================================================================
-        error_row_container = tk.Frame(cell_split_frame_ML, bg="#5862c0")
+        error_row_container = tk.Frame(cell_split_frame_ML, bg=self.button_color)
         error_row_container.grid(row=0, column=0, sticky="nsew", padx=5, pady=5)
         error_row_container.grid_rowconfigure(0, weight=1)
         error_row_container.grid_columnconfigure(0, weight=1)  # Space to the left
@@ -78,19 +80,42 @@ class homePage(tk.Frame):
         error_row_container.grid_columnconfigure(3, weight=1)
 
         lbl_error_title = tk.Label(error_row_container, text="Error Count : ", 
-                                   font=("Helvetica", 12, "bold"), bg="#5862c0", fg="white")
+                                   font=("Helvetica", 12, "bold"), bg= self.button_color , fg="white")
         lbl_error_title.grid(row=0, column=1, sticky="e")
 
         self.lbl_error_value = tk.Label(error_row_container, text="--", 
-                                        font=("Helvetica", 12, "bold"), bg="#5862c0", fg="#ff3333")
+                                        font=("Helvetica", 12, "bold"), bg=self.button_color, fg="#ffffff")
         self.lbl_error_value.grid(row=0, column=2, sticky="w")
-
+        self._displayed_error_count = 0
         def trigger_error_event(event):
             self.print_click("Entire Error Warning Block Area")
 
         error_row_container.bind("<Button-1>", trigger_error_event)
         lbl_error_title.bind("<Button-1>", trigger_error_event)
         self.lbl_error_value.bind("<Button-1>", trigger_error_event)
+
+        # Row 1: Listbox for displaying error messages (shows 3 at a time)
+        # =====================================================================
+        list_container = tk.Frame(cell_split_frame_ML, bg="#ffffff")
+        list_container.grid(row=1, column=0, sticky="nsew", padx=5, pady=(2, 5))
+
+        scrollbar = tk.Scrollbar(list_container, orient="vertical")
+        scrollbar.pack(side="right", fill="y")
+
+        # height=3 enforces exactly 3 lines visible
+        self.error_listbox = tk.Listbox(
+            list_container,
+            height=3,
+            bg="#FFF0F0",
+            fg="#CC0000",
+            font=("Helvetica", 10),
+            bd=1,
+            relief="solid",
+            yscrollcommand=scrollbar.set,
+            selectbackground="#E52222"
+        )
+        self.error_listbox.pack(side="left", fill="both", expand=True)
+        scrollbar.config(command=self.error_listbox.yview)
         #Error warning=================================================================================================
 
         #Button for mode===============================================================================================
@@ -99,7 +124,7 @@ class homePage(tk.Frame):
         cell_split_frame_BL.grid_rowconfigure(0, weight=2)
         cell_split_frame_BL.grid_columnconfigure(0, weight=1)
 
-        mode_config_container = tk.Frame(cell_split_frame_BL, bg="#5862c0")
+        mode_config_container = tk.Frame(cell_split_frame_BL, bg= self.button_color )
         mode_config_container.grid(row=0, column=0, sticky="nsew", padx=5, pady=5)
         mode_config_container.grid_rowconfigure(0, weight=1) #empty gap
         mode_config_container.grid_rowconfigure(0, weight=1) 
@@ -116,7 +141,7 @@ class homePage(tk.Frame):
             "bd": 2,
             "padx": 15,
             "pady": 5,
-            "activebackground": "#2e0771"
+            "activebackground": self.button_color
         }
 
         nav_buttons = [
@@ -125,7 +150,7 @@ class homePage(tk.Frame):
         ]
         
         for text, command_action in nav_buttons:
-            btn = tk.Button(target_frame, text=text, bg="#2e0771", fg="#FFFFFF", 
+            btn = tk.Button(target_frame, text=text, bg=self.button_color, fg="#FFFFFF", 
                             command=command_action, **btn_style)
             btn.pack(side="left", padx=4, pady=5)
 
@@ -136,16 +161,31 @@ class homePage(tk.Frame):
         ]
         
         for text, command_action in control_buttons:
-            btn = tk.Button(target_frame, text=text, bg="#2e0771", fg="#FFFFFF", 
-                                command=command_action, **btn_style)
+            btn = tk.Button(target_frame, text=text, bg=self.button_color, fg="#FFFFFF", 
+                            command=command_action, **btn_style)
             
             # Packing to the right pins them to the East wall
             btn.pack(side="right", padx=4, pady=5)
     def poll_value(self):
         latest_stage = get_current_system_stage()
         self.lbl_stage_value.config(text=latest_stage)
-        latest_error_count = get_current_error_log()
+        error_log = get_current_error_log()
+        latest_error_count = len(error_log)
         self.lbl_error_value.config(text=latest_error_count)
+        self.after(250, self.poll_value)
+
+        if latest_error_count > self._displayed_error_count:
+            # Append only the newly added items
+            for new_msg in error_log[self._displayed_error_count:]:
+                self.error_listbox.insert(tk.END, f"• {new_msg}")
+            
+            # Update tracked count
+            self._displayed_error_count = latest_error_count
+
+            # Auto-scroll listbox to the bottom (showing 3 most recent entries)
+            self.error_listbox.yview_moveto(1.0)
+
+        # 4. Schedule next cycle in 250 ms
         self.after(250, self.poll_value)
 
         
@@ -171,7 +211,7 @@ def get_current_error_log():
     In the future: Will return the active error log read from the hardware.
     """
     error_log = [
-        "Error 1: Overcurrent detected",
-        "Error 2: Temperature too high"
+       "Overcurrent detected",
+       "Temperature too high"
     ]
-    return len(error_log)
+    return error_log
