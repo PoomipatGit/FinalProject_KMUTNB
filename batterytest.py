@@ -21,7 +21,8 @@ class BatteryTestpage:
 		self.charge_amp = tk.StringVar()
 		self.charge_watt = tk.StringVar()
 		self.set_volt = tk.StringVar()
-  
+		
+		self.running_time = False
 		self.run_sec = 0.0
 		self.run_time_sec = tk.StringVar()	
 		
@@ -50,6 +51,7 @@ class BatteryTestpage:
         #Run
 		self.monitor_battery()
 		self.update_loop()
+		self.run_time()
 		self.limit()
 		self.discharge_current_limit()
 		self.discharge_power_limit()
@@ -76,6 +78,15 @@ class BatteryTestpage:
 		self.vaw_text.set(f"{self.volt} V\n{self.amp} A\n {self.watt} W")
 		self.battery_test.after(100, self.update_loop)
 		
+	def run_time(self):
+		#run time
+		if self.running_time == True:
+			self.run_sec+=0.1
+			td = timedelta(seconds=self.run_sec)
+			run_time = str(td)[:-5]
+			self.run_time_sec.set(f"{run_time}")
+		self.battery_test.after(100, self.run_time)
+  
 	def monitor_battery(self):
 		#capacity
 		self.monitor_capacity = tk.Label(
@@ -745,7 +756,7 @@ class BatteryTestpage:
 	def button_run(self):
 		self.run_button = tk.Button(
 			self.setup_container,
-			command=self.run_setup,
+			command=self.run_stop_setup,
 			text="RUN",
 			font=("Arial", 14, "bold"), # ฟอนต์, ขนาด, น้ำหนัก
 			bg=self.bgcolor2,               # สีพื้นหลัง (Background)
@@ -760,14 +771,22 @@ class BatteryTestpage:
 			cursor="hand2"              # เปลี่ยนรูปเม้าส์เมื่อชี้ปุ่ม (เช่น รูปมือ)
 		)
 		self.run_button.place(x=855, y=200, anchor="center")
-	def run_setup(self):
-		print("Run!")
-		#run time
-		self.run_sec+=0.1
-		td = timedelta(seconds=self.run_sec)
-		run_time = str(td)[:-5]
-		self.run_time_sec.set(f"{run_time}")
-		self.battery_test.after(100, self.update_loop)
+	def run_stop_setup(self):
+		if self.run_button.cget("text") == "RUN":
+			print("Run!")
+			self.run_button.config(
+				text="STOP", 
+				bg="#FF4D4D",              # เปลี่ยนสีปุ่มเป็นสีแดง
+				activebackground="#CC0000"
+			)
+			self.running_time = True
+		else:
+			self.run_button.config(
+							text="RUN",
+							bg=self.bgcolor2,              # เปลี่ยนสีปุ่มเป็นสีแดง
+							activebackground="#17033b"
+						)
+			self.running_time = False
 	
 	def button_save(self):
 		self.save_button = tk.Button(
@@ -788,7 +807,6 @@ class BatteryTestpage:
 		)
 		self.save_button.place(x=855, y=130, anchor="center")
 	def save_setup(self):
-		
 		print("Save!")
 
 
