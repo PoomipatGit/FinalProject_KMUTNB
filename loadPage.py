@@ -4,7 +4,7 @@ from tkinter import ttk
 import tkinter as tk
 from basePage import BasePage
 
-class sourcePage(BasePage):
+class loadPage(BasePage):
 	label_color = "#8056a5"
 	button_color = "#573172"
 
