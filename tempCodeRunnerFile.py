@@ -1,0 +1,1 @@
+self.monitor_capacity.place(x=10, y=58)
