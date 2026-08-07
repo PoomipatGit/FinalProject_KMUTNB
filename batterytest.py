@@ -106,7 +106,7 @@ class BatteryTestpage(BasePage):
 			width=10,                   
 			height=4                  
 		)
-		self.monitor_capacity.place(x=10, y=58)
+		self.monitor_capacity.place(x=10, y=40)
 
 		self.monitor_VAW = tk.Label(
 			self, 
@@ -119,7 +119,7 @@ class BatteryTestpage(BasePage):
 			width=15,                   
 			height=4                    
 		)
-		self.monitor_VAW.place(x=336, y=58)
+		self.monitor_VAW.place(x=336, y=40)
 
 	def limit(self):
 		self.limit_container = tk.LabelFrame(
@@ -130,17 +130,17 @@ class BatteryTestpage(BasePage):
 			bd=0,                   
 			relief="flat",
 		)
-		self.limit_container.place(x=592, y=58) 
+		self.limit_container.place(x=592, y=40) 
 		self.limit_container.grid_propagate(False)
 		
 		self.limit_title = tk.Label(
-			self,     
+			self.limit_container,     
 			text="Limit",
 			font=("Arial", 18),    
 			bg=self.bgcolor1,
 			fg="white"           
 		)
-		self.limit_title.place(x=766, y=84, anchor="center")
+		self.limit_title.place(x=174, y=26, anchor="center")
 
 	def discharge_current_limit(self):
 		self.dischrg_amp = tk.Entry(
@@ -244,7 +244,7 @@ class BatteryTestpage(BasePage):
 			justify="center"  
 		)
 		self.chrg_amp.bind("<Return>", lambda event: self.limit_chrg_current())
-		self.chrg_amp.place(x=20, y=142, width=120, height=30)
+		self.chrg_amp.place(x=20, y=137, width=120, height=30)
 		
 		self.chrg_amp_unit = tk.Label(
 			self.limit_container, 
@@ -255,7 +255,7 @@ class BatteryTestpage(BasePage):
 			highlightbackground="#ffffff",                
 			fg="white"                        
 		)
-		self.chrg_amp_unit.place(x=130, y=142, width=30, height=30)
+		self.chrg_amp_unit.place(x=130, y=137, width=30, height=30)
 		
 		self.chrg_amp_title = tk.Label(
 			self.limit_container,     
@@ -264,7 +264,7 @@ class BatteryTestpage(BasePage):
 			bg=self.bgcolor1,
 			fg="white"           
 		)
-		self.chrg_amp_title.place(x=85, y=127, anchor="center")
+		self.chrg_amp_title.place(x=85, y=122, anchor="center")
 
 	def limit_chrg_current(self):
 		raw_data = self.charge_amp.get()
@@ -288,7 +288,7 @@ class BatteryTestpage(BasePage):
 			justify="center"  
 		)
 		self.chrg_watt.bind("<Return>", lambda event: self.limit_chrg_power())
-		self.chrg_watt.place(x=190, y=142, width=120, height=30)
+		self.chrg_watt.place(x=190, y=137, width=120, height=30)
 		
 		self.chrg_watt_unit = tk.Label(
 			self.limit_container, 
@@ -299,7 +299,7 @@ class BatteryTestpage(BasePage):
 			highlightbackground="#ffffff",                
 			fg="white"                        
 		)
-		self.chrg_watt_unit.place(x=300, y=142, width=30, height=30)
+		self.chrg_watt_unit.place(x=300, y=137, width=30, height=30)
 		
 		self.chrg_watt_title = tk.Label(
 			self.limit_container,     
@@ -308,7 +308,7 @@ class BatteryTestpage(BasePage):
 			bg=self.bgcolor1,
 			fg="white"           
 		)
-		self.chrg_watt_title.place(x=255, y=127, anchor="center")
+		self.chrg_watt_title.place(x=255, y=122, anchor="center")
 
 	def limit_chrg_power(self):
 		raw_data = self.charge_watt.get()
@@ -373,20 +373,20 @@ class BatteryTestpage(BasePage):
 			bd=0,                   
 			relief="flat",
 		)
-		self.runtime_container.place(x=336, y=202) 
+		self.runtime_container.place(x=336, y=184) 
 		self.runtime_container.grid_propagate(False)
 		
 		self.runtime_title = tk.Label(
-			self,     
+			self.runtime_container,     
 			text="Run Time",
 			font=("Arial", 16),    
 			bg=self.bgcolor1,
 			fg="white"           
 		)
-		self.runtime_title.place(x=459, y=220, anchor="center")
+		self.runtime_title.place(x=95, y=10, anchor="center")
 		
 		self.lbl_runtime_val = tk.Label(
-			self, 
+			self.runtime_container, 
 			textvariable=self.run_time_sec,   
 			justify="center",            
 			anchor="center",            
@@ -396,7 +396,7 @@ class BatteryTestpage(BasePage):
 			width=14,                   
 			height=2                    
 		)
-		self.lbl_runtime_val.place(x=459, y=263, anchor="center")
+		self.lbl_runtime_val.place(x=15, y=50, anchor="w")
 
 	def setup(self):
 		self.setup_container = tk.LabelFrame(
@@ -407,17 +407,17 @@ class BatteryTestpage(BasePage):
 			bd=0,                   
 			relief="flat",
 		)
-		self.setup_container.place(x=10, y=314) 
+		self.setup_container.place(x=10, y=298) 
 		self.setup_container.grid_propagate(False)
 		
 		self.setup_title = tk.Label(
-			self,     
+			self.setup_container,     
 			text="Set up",
 			font=("Arial", 18),    
 			bg=self.bgcolor1,
 			fg="white"           
 		)
-		self.setup_title.place(x=475, y=334, anchor="center")
+		self.setup_title.place(x=465, y=20, anchor="center")
 
 	def mode_batttest(self):
 		self.mode_batt = tk.Menubutton(
