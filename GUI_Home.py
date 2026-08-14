@@ -5,6 +5,7 @@ from sourcePage import sourcePage
 from batterytest import BatteryTestpage
 from loadPage import loadPage
 from Canconfig import Canconfigpage
+from warningmessagePage import WarningmessagePage
 
 class bidirectional_DC_supply_app(tk.Tk):
     def __init__(self, *args, **kwargs):
@@ -27,7 +28,7 @@ class bidirectional_DC_supply_app(tk.Tk):
         self.frames = {}
 #       GUI_page = [homePage, sourcePage, loadPage, batteryTestPage, warningPage, canlogPage, canConfigPage,
 #                     canCommandPage, canSequencePage]
-        GUI_page = [homePage, sourcePage, loadPage, BatteryTestpage, Canconfigpage]
+        GUI_page = [homePage, sourcePage, loadPage, BatteryTestpage, WarningmessagePage, Canconfigpage]
         for F in GUI_page:
             frame = F(parent=container, controller=self)
             self.frames[F] = frame

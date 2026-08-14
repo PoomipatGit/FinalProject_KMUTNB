@@ -3,18 +3,17 @@ from datetime import timedelta
 from tkinter import ttk
 from basePage import BasePage
 class WarningmessagePage(BasePage):
-    def __init__(self, parent):
+    def __init__(self, parent, controller):
         # 1. Mount as a tk.Frame child inside master container
-        super().__init__(parent)
-        #self.controller = controller
-        self.pack(fill=tk.BOTH, expand=True, padx=0, pady=0)
-#self.can_config.title("Can Config")
+        super().__init__(parent, controller)
+        self.controller = controller
+    
+        self.grid(row=0, column=0, sticky="nsew")
+        
         self.bgcolor1 = "#a67dc9" #สีอ่อน
         self.bgcolor2 = "#573172" #สีเข้ม
         
         self.apply_table_style()
-        
-        # 3. สร้างตาราง
         self.create_table()
 
     def apply_table_style(self):
@@ -25,13 +24,6 @@ class WarningmessagePage(BasePage):
         style.theme_use("clam")  # ต้องใช้ clam theme เพื่อให้เปลี่ยนสี Header ได้สมบูรณ์
         
         # --- 1. สั่งให้ Treeview วาดเส้นรอบแต่ละเซลล์ ---
-        style.layout("Custom.Treeview.Item", [
-            ('Treeitem.padding', {'sticky': 'nswe', 'children': [
-                ('Treeitem.indicator', {'side': 'left', 'sticky': ''}),
-                ('Treeitem.image', {'side': 'left', 'sticky': ''}),
-                ('Treeitem.text', {'side': 'left', 'sticky': ''})
-            ]})
-        ])
         # --- ปรับแต่งส่วนเนื้อหาตาราง (Rows) ---
         style.configure(
             "Custom.Treeview",
@@ -39,7 +31,7 @@ class WarningmessagePage(BasePage):
             foreground="black",               # สีข้อความในแถว
             fieldbackground=self.bgcolor1,    # สีพื้นหลังพื้นที่ว่างของตาราง
             rowheight=30,                     # ความสูงของแต่ละแถว (ปรับให้อ่านง่ายขึ้น)
-            font=("Segoe UI", 12),
+            font=("Segoe UI", 14),
             relief="solid",
             borderwidth=1,
             lightcolor="#ffffff",
@@ -52,12 +44,13 @@ class WarningmessagePage(BasePage):
             "Custom.Treeview.Heading",
             background=self.bgcolor2,         # สีพื้นหลังหัวตาราง
             foreground="white",               # สีข้อความหัวตาราง
-            font=("Segoe UI", 12, "bold"),
+            font=("Segoe UI", 14, "bold"),
             relief="flat"
         )
         
         # ป้องกันไม่ให้สี Header เปลี่ยนเมื่อเอาเมาส์ไปชี้ (Hover)
         style.map("Custom.Treeview.Heading", background=[("active", self.bgcolor2)])
+        style.map("Custom.Treeview", background=[("active", self.bgcolor1)])
 
     def create_table(self):
         #columns: กำหนด Identifier (ID อ้างอิง) ประจำแต่ละคอลัมน์ ใช้สำหรับเขียนโค้ด
