@@ -24,6 +24,7 @@ class BasePage(tk.Frame):
         from loadPage import loadPage
         from sourcePage import sourcePage
         from warningmessagePage import WarningmessagePage
+        from canlogPage import CanlogPage
         from Canconfig import Canconfigpage
 
         return {
@@ -33,6 +34,7 @@ class BasePage(tk.Frame):
             "Load": loadPage,
             "Battery Test": BatteryTestpage,
             "Warning Messages": WarningmessagePage,
+            "CAN Log": CanlogPage,
             "CAN Config": Canconfigpage
         }
 
