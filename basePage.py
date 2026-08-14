@@ -23,6 +23,7 @@ class BasePage(tk.Frame):
         from homePage import homePage
         from loadPage import loadPage
         from sourcePage import sourcePage
+        from Canconfig import Canconfigpage
 
         return {
             "CAN Setup": canMessageSetup,
@@ -30,6 +31,7 @@ class BasePage(tk.Frame):
             "Source": sourcePage,
             "Load": loadPage,
             "Battery Test": BatteryTestpage,
+            "CAN Config": Canconfigpage
         }
 
     def setup_status_bar(self):
