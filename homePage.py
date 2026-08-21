@@ -55,7 +55,6 @@ class homePage(BasePage):
 	def setup_main_containers(self):
 	
 		self.grid_container = tk.Frame(self, bg="#FFFFFF")
-		
 		# pady=(0, 0) removes vertical gaps above and below the grid
 		# Change padx to 5 or 0 if you want to remove the side red borders too
 		self.grid_container.pack(side="top", fill="both", expand=True, padx=5, pady=0)

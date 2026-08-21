@@ -1,5 +1,5 @@
 import tkinter as tk
-from tkinter import ttk
+from tkinter import ttk, filedialog, messagebox
 
 
 class BasePage(tk.Frame):
@@ -44,6 +44,7 @@ class BasePage(tk.Frame):
 
         # 1. Left Nav Buttons
         for text, cmd in [
+            ("Back", self.handle_back),
             ("Home", self.go_home),
             ("File", self.open_file_selector),
         ]:
@@ -93,7 +94,10 @@ class BasePage(tk.Frame):
                 command=cmd,
                 **btn_style,
             ).pack(side="right", padx=4, pady=2)
-
+    def handle_back(self):
+        """Calls controller to navigate back to the previous page in history."""
+        if hasattr(self, "controller") and self.controller and hasattr(self.controller, "go_back"):
+            self.controller.go_back()
     def on_nav_select(self, event):
         """Triggered when the user selects a page from the dropdown."""
         selected_name = self.nav_dropdown.get()
