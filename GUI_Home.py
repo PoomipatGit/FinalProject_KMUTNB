@@ -8,6 +8,7 @@ from batterytest import BatteryTestpage
 from loadPage import loadPage
 from canMessageSetup import canMessageSetup
 from canSequencePage import canSequencePage
+from canMessageCommand import canMessageCommand
 
 
 class bidirectional_DC_supply_app(tk.Tk):
@@ -44,7 +45,8 @@ class bidirectional_DC_supply_app(tk.Tk):
             BatteryTestpage,
             loadPage,
             canMessageSetup,
-            canSequencePage
+            canSequencePage,
+            canMessageCommand
         )
 
         for F in pages:
