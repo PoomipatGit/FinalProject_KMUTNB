@@ -1,1 +1,1 @@
-ours = total_secs // 3600
+from batterysimulationPage import Batterysimulationpage

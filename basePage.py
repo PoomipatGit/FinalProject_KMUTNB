@@ -26,13 +26,14 @@ class BasePage(tk.Frame):
         from warningmessagePage import WarningmessagePage
         from canlogPage import CanlogPage
         from Canconfig import Canconfigpage
-
+        from batterysimulationPage import Batterysimulationpage
         return {
             "CAN Setup": canMessageSetup,
             "Home": homePage,
             "Source": sourcePage,
             "Load": loadPage,
             "Battery Test": BatteryTestpage,
+            "Battery simulation": Batterysimulationpage,
             "Warning Messages": WarningmessagePage,
             "CAN Log": CanlogPage,
             "CAN Config": Canconfigpage

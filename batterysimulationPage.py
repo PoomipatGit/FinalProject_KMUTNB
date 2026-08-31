@@ -4,10 +4,10 @@ from datetime import timedelta
 from basePage import BasePage
 
 class Batterysimulationpage(BasePage):
-    def __init__(self, parent):
+    def __init__(self, parent, controller):
         # 1. Mount as a tk.Frame child inside master container
-        super().__init__(parent)
-        #self.controller = controller
+        super().__init__(parent, controller)
+        self.controller = controller
 
         # Color Palette
         self.bgcolor1 = "#a67dc9" # สีอ่อน
@@ -1480,24 +1480,15 @@ class Batterysimulationpage(BasePage):
         #-------------------------------------------------------------------------
         
         
-if __name__ == "__main__":
+#if __name__ == "__main__":
     # 1. สร้าง Root Window ขึ้นมาเป็น Parent ชั่วคราว
-    root = tk.Tk()
-    root.title("Test: Batterysimulationpage")
-    root.geometry("950x570")
+    #root = tk.Tk()
+    #root.title("Test: Batterysimulationpage")
+    # root.geometry("950x570")
 
     # 2. นำหน้านี้มาวางลงใน Root
-    app = Batterysimulationpage(parent=root)
-    app.pack(fill="both", expand=True)
-    
-    #def terminal_input():
-    #    while True:
-    #       try:
-    #           app.soc_now_val = float(input("Enter SOC (%): "))
-    #       except ValueError:
-    #           pass
+    #app = Batterysimulationpage(parent=root)
+    #app.pack(fill="both", expand=True)
 
-    #threading.Thread(target=terminal_input, daemon=True).start()
-    # 3. เริ่ม Event Loop
-    root.mainloop()
+    #root.mainloop()
     
