@@ -4,7 +4,7 @@ import time
 from basePage import BasePage
 
 
-class canMessageSetup(BasePage):
+class canMessageCommand(BasePage):
 	theme_color = "#135279"  # Dark Teal header matching the template
 	row_bg = "#DCE2E8"       # Light grey row background
 
@@ -43,13 +43,14 @@ class canMessageSetup(BasePage):
 			rowheight=26,
 			font=("Helvetica", 9)
 		)
-
 	def setup_ui(self):
-		# Main container with 0 top margin to snap directly below BasePage top bar (Row 0)
+		# Main container placed at row=1 (directly below BasePage top status bar at row=0)
 		main_container = tk.Frame(self, bg="#ffffff")
-		
-		# CHANGE THIS LINE from .pack() to .grid():
 		main_container.grid(row=1, column=0, sticky="nsew", padx=10, pady=(0, 5))
+
+		# Ensure row 1 expands inside self
+		self.grid_rowconfigure(1, weight=1)
+		self.grid_columnconfigure(0, weight=1)
 
 		# =====================================================================
 		# 1. Main Data Table (Treeview)
@@ -212,6 +213,7 @@ class canMessageSetup(BasePage):
 			command=self.add_new_command
 		)
 		btn_add.pack(side="bottom")
+
 	# =========================================================================
 	# 3. Debug Console & Mock Execution Toolbar
 	# =========================================================================
@@ -225,10 +227,13 @@ class canMessageSetup(BasePage):
 			padx=5,
 			pady=5
 		)
-		# CHANGE THIS LINE from .pack() to .grid() (placed at Row 2, below main_container at Row 1):
+		# Main container placed at row=2 (below main_container at row=1)
 		debug_container.grid(row=2, column=0, sticky="nsew", padx=10, pady=(5, 10))
 
-		# Toolbar Frame (internal pack calls remain valid)
+		# Ensure row 2 expands inside self
+		self.grid_rowconfigure(2, weight=1)
+
+		# Toolbar Frame
 		toolbar = tk.Frame(debug_container, bg="#ffffff")
 		toolbar.pack(fill="x", pady=(0, 5))
 
