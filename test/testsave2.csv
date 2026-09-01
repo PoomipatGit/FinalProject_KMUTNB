@@ -1,0 +1,4 @@
+Name,TxRx,Identifier,CAN Data,Value,Comment,Action,Result
+Read_Volt,Tx,02 A3 3F F0,10 01 00 00 00 00 00 00,0.00 V,Read Voltage,RUN,--
+Set_Current,Tx,02 A3 3F F1,10 02 05 00 00 00 00 00,5.00 A,Set 5.0A Limit,RUN,--
+System_Reset,Tx,02 A3 F0 3F,00 00 00 00 00 00 00 00,--,Soft Reset,RUN,--
