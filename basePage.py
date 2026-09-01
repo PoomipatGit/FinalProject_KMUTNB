@@ -32,6 +32,10 @@ class BasePage(tk.Frame):
         from homePage import homePage
         from loadPage import loadPage
         from sourcePage import sourcePage
+        from warningmessagePage import WarningmessagePage
+        from canlogPage import CanlogPage
+        from Canconfig import Canconfigpage
+        from batterysimulationPage import Batterysimulationpage
         from canMessageCommand import canMessageCommand
         from canSequencePage import canSequencePage
 
@@ -40,6 +44,10 @@ class BasePage(tk.Frame):
             "Source": sourcePage,
             "Load": loadPage,
             "Battery Test": BatteryTestpage,
+            "Battery simulation": Batterysimulationpage,
+            "Warning Messages": WarningmessagePage,
+            "CAN Log": CanlogPage,
+            "CAN Config": Canconfigpage
             "saved Command": canMessageCommand,
             "Sequence Config": canSequencePage,
         }

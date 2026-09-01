@@ -6,6 +6,10 @@ from homePage import homePage
 from sourcePage import sourcePage
 from batterytest import BatteryTestpage
 from loadPage import loadPage
+from Canconfig import Canconfigpage
+from warningmessagePage import WarningmessagePage
+from canlogPage import CanlogPage
+from batterysimulationPage import Batterysimulationpage
 from canMessageSetup import canMessageSetup
 from canSequencePage import canSequencePage
 from canMessageCommand import canMessageCommand
@@ -39,6 +43,10 @@ class bidirectional_DC_supply_app(tk.Tk):
 
         # --- 4. Instantiate & Stack All Pages ---
         self.frames = {}
+#       GUI_page = [homePage, sourcePage, loadPage, batteryTestPage, warningPage, canlogPage, canConfigPage,
+#                     canCommandPage, canSequencePage]
+        GUI_page = [homePage, sourcePage, loadPage, BatteryTestpage,Batterysimulationpage, WarningmessagePage, CanlogPage, Canconfigpage]
+        for F in GUI_page:
         pages = (
             homePage,
             sourcePage,
