@@ -7,7 +7,7 @@ class BatteryTestpage(BasePage):
 		# 1. Mount as a tk.Frame child inside master container
 		super().__init__(parent, controller)
 		self.controller = controller
-
+		
 		# Color Palette
 		self.bgcolor1 = "#a67dc9" # สีอ่อน
 		self.bgcolor2 = "#573172" # สีเข้ม
@@ -100,26 +100,26 @@ class BatteryTestpage(BasePage):
 			textvariable=self.capacity_text,   
 			justify="center", 
 			anchor="center",       
-			bg=self.bgcolor2,              
+			bg=self.bgcolor1,              
 			fg="white",                
 			font=("Arial", 40),         
 			width=10,                   
 			height=4                  
 		)
-		self.monitor_capacity.place(x=10, y=58)
+		self.monitor_capacity.place(x=10, y=40)
 
 		self.monitor_VAW = tk.Label(
 			self, 
 			textvariable=self.vaw_text,   
 			justify="center",            
 			anchor="center",            
-			bg=self.bgcolor2,              
+			bg=self.bgcolor1,              
 			fg="white",                
 			font=("Arial", 20),         
 			width=15,                   
 			height=4                    
 		)
-		self.monitor_VAW.place(x=336, y=58)
+		self.monitor_VAW.place(x=336, y=40)
 
 	def limit(self):
 		self.limit_container = tk.LabelFrame(
@@ -130,17 +130,17 @@ class BatteryTestpage(BasePage):
 			bd=0,                   
 			relief="flat",
 		)
-		self.limit_container.place(x=592, y=58) 
+		self.limit_container.place(x=592, y=40) 
 		self.limit_container.grid_propagate(False)
 		
 		self.limit_title = tk.Label(
-			self,     
+			self.limit_container,     
 			text="Limit",
 			font=("Arial", 18),    
 			bg=self.bgcolor1,
 			fg="white"           
 		)
-		self.limit_title.place(x=766, y=84, anchor="center")
+		self.limit_title.place(x=174, y=26, anchor="center")
 
 	def discharge_current_limit(self):
 		self.dischrg_amp = tk.Entry(
@@ -155,7 +155,7 @@ class BatteryTestpage(BasePage):
 			relief="flat",
 			justify="center"  
 		)
-		self.dischrg_amp.bind("<Return>", lambda event: self.limit_dischrg_current())
+		self.dischrg_amp.bind("<Return>", lambda event: self.func_limit_dischrg_current())
 		self.dischrg_amp.place(x=20, y=72, width=120, height=30)
 		
 		self.dischrg_amp_unit = tk.Label(
@@ -178,7 +178,7 @@ class BatteryTestpage(BasePage):
 		)
 		self.dischrg_amp_title.place(x=85, y=57, anchor="center")
 
-	def limit_dischrg_current(self):
+	def func_limit_dischrg_current(self):
 		raw_data = self.discharge_amp.get()
 		try:
 			target_value = float(raw_data)
@@ -199,7 +199,7 @@ class BatteryTestpage(BasePage):
 			relief="flat",
 			justify="center"  
 		)
-		self.dischrg_watt.bind("<Return>", lambda event: self.limit_dischrg_power())
+		self.dischrg_watt.bind("<Return>", lambda event: self.func_limit_dischrg_power())
 		self.dischrg_watt.place(x=190, y=72, width=120, height=30)
 		
 		self.dischrg_watt_unit = tk.Label(
@@ -222,7 +222,7 @@ class BatteryTestpage(BasePage):
 		)
 		self.dischrg_watt_title.place(x=255, y=57, anchor="center")
 
-	def limit_dischrg_power(self):
+	def func_limit_dischrg_power(self):
 		raw_data = self.discharge_watt.get()
 		try:
 			target_value = float(raw_data)
@@ -243,8 +243,8 @@ class BatteryTestpage(BasePage):
 			relief="flat",
 			justify="center"  
 		)
-		self.chrg_amp.bind("<Return>", lambda event: self.limit_chrg_current())
-		self.chrg_amp.place(x=20, y=142, width=120, height=30)
+		self.chrg_amp.bind("<Return>", lambda event: self.func_limit_chrg_current())
+		self.chrg_amp.place(x=20, y=137, width=120, height=30)
 		
 		self.chrg_amp_unit = tk.Label(
 			self.limit_container, 
@@ -255,7 +255,7 @@ class BatteryTestpage(BasePage):
 			highlightbackground="#ffffff",                
 			fg="white"                        
 		)
-		self.chrg_amp_unit.place(x=130, y=142, width=30, height=30)
+		self.chrg_amp_unit.place(x=130, y=137, width=30, height=30)
 		
 		self.chrg_amp_title = tk.Label(
 			self.limit_container,     
@@ -264,9 +264,9 @@ class BatteryTestpage(BasePage):
 			bg=self.bgcolor1,
 			fg="white"           
 		)
-		self.chrg_amp_title.place(x=85, y=127, anchor="center")
+		self.chrg_amp_title.place(x=85, y=122, anchor="center")
 
-	def limit_chrg_current(self):
+	def func_limit_chrg_current(self):
 		raw_data = self.charge_amp.get()
 		try:
 			target_value = float(raw_data)
@@ -287,8 +287,8 @@ class BatteryTestpage(BasePage):
 			relief="flat",
 			justify="center"  
 		)
-		self.chrg_watt.bind("<Return>", lambda event: self.limit_chrg_power())
-		self.chrg_watt.place(x=190, y=142, width=120, height=30)
+		self.chrg_watt.bind("<Return>", lambda event: self.func_limit_chrg_power())
+		self.chrg_watt.place(x=190, y=137, width=120, height=30)
 		
 		self.chrg_watt_unit = tk.Label(
 			self.limit_container, 
@@ -299,7 +299,7 @@ class BatteryTestpage(BasePage):
 			highlightbackground="#ffffff",                
 			fg="white"                        
 		)
-		self.chrg_watt_unit.place(x=300, y=142, width=30, height=30)
+		self.chrg_watt_unit.place(x=300, y=137, width=30, height=30)
 		
 		self.chrg_watt_title = tk.Label(
 			self.limit_container,     
@@ -308,9 +308,9 @@ class BatteryTestpage(BasePage):
 			bg=self.bgcolor1,
 			fg="white"           
 		)
-		self.chrg_watt_title.place(x=255, y=127, anchor="center")
+		self.chrg_watt_title.place(x=255, y=122, anchor="center")
 
-	def limit_chrg_power(self):
+	def func_limit_chrg_power(self):
 		raw_data = self.charge_watt.get()
 		try:
 			target_value = float(raw_data)
@@ -331,7 +331,7 @@ class BatteryTestpage(BasePage):
 			relief="flat",
 			justify="center"  
 		)
-		self.set_volt_entry.bind("<Return>", lambda event: self.limit_setting_voltage())
+		self.set_volt_entry.bind("<Return>", lambda event: self.func_limit_setting_voltage())
 		self.set_volt_entry.place(x=20, y=202, width=290, height=30)
 		
 		self.set_volt_unit = tk.Label(
@@ -354,7 +354,7 @@ class BatteryTestpage(BasePage):
 		)
 		self.set_volt_title.place(x=85, y=187, anchor="center")
 
-	def limit_setting_voltage(self):
+	def func_limit_setting_voltage(self):
 		raw_data = self.set_volt.get()
 		try:
 			target_value = float(raw_data)
@@ -373,20 +373,20 @@ class BatteryTestpage(BasePage):
 			bd=0,                   
 			relief="flat",
 		)
-		self.runtime_container.place(x=336, y=202) 
+		self.runtime_container.place(x=336, y=184) 
 		self.runtime_container.grid_propagate(False)
 		
 		self.runtime_title = tk.Label(
-			self,     
+			self.runtime_container,     
 			text="Run Time",
 			font=("Arial", 16),    
 			bg=self.bgcolor1,
 			fg="white"           
 		)
-		self.runtime_title.place(x=459, y=220, anchor="center")
+		self.runtime_title.place(x=95, y=10, anchor="center")
 		
 		self.lbl_runtime_val = tk.Label(
-			self, 
+			self.runtime_container, 
 			textvariable=self.run_time_sec,   
 			justify="center",            
 			anchor="center",            
@@ -396,7 +396,7 @@ class BatteryTestpage(BasePage):
 			width=14,                   
 			height=2                    
 		)
-		self.lbl_runtime_val.place(x=459, y=263, anchor="center")
+		self.lbl_runtime_val.place(x=15, y=50, anchor="w")
 
 	def setup(self):
 		self.setup_container = tk.LabelFrame(
@@ -407,17 +407,17 @@ class BatteryTestpage(BasePage):
 			bd=0,                   
 			relief="flat",
 		)
-		self.setup_container.place(x=10, y=314) 
+		self.setup_container.place(x=10, y=298) 
 		self.setup_container.grid_propagate(False)
 		
 		self.setup_title = tk.Label(
-			self,     
+			self.setup_container,     
 			text="Set up",
 			font=("Arial", 18),    
 			bg=self.bgcolor1,
 			fg="white"           
 		)
-		self.setup_title.place(x=475, y=334, anchor="center")
+		self.setup_title.place(x=465, y=20, anchor="center")
 
 	def mode_batttest(self):
 		self.mode_batt = tk.Menubutton(
@@ -469,7 +469,7 @@ class BatteryTestpage(BasePage):
 			relief="flat",
 			justify="center"  
 		)
-		self.chrg_volt.bind("<Return>", lambda event: self.setup_chrg_voltage())
+		self.chrg_volt.bind("<Return>", lambda event: self.func_setup_chrg_voltage())
 		self.chrg_volt.place(x=250, y=86, width=130, height=50)
 		
 		self.chrgvolt_unit = tk.Label(
@@ -492,7 +492,7 @@ class BatteryTestpage(BasePage):
 		)
 		self.chrgvolt_title.place(x=310, y=71, anchor="center")
 
-	def setup_chrg_voltage(self):
+	def func_setup_chrg_voltage(self):
 		raw_data = self.set_chrg_volt.get()
 		try:
 			target_value = float(raw_data)
@@ -513,7 +513,7 @@ class BatteryTestpage(BasePage):
 			relief="flat",
 			justify="center"  
 		)
-		self.chrg_curr.bind("<Return>", lambda event: self.setup_chrg_current())
+		self.chrg_curr.bind("<Return>", lambda event: self.func_setup_chrg_current())
 		self.chrg_curr.place(x=435, y=86, width=130, height=50)
 		
 		self.chrgamp_unit = tk.Label(
@@ -536,7 +536,7 @@ class BatteryTestpage(BasePage):
 		)
 		self.chrgamp_title.place(x=495, y=71, anchor="center")
 
-	def setup_chrg_current(self):
+	def func_setup_chrg_current(self):
 		raw_data = self.set_chrg_amp.get()
 		try:
 			target_value = float(raw_data)
@@ -557,7 +557,7 @@ class BatteryTestpage(BasePage):
 			relief="flat",
 			justify="center"  
 		)
-		self.cutoff_cap_entry.bind("<Return>", lambda event: self.setup_cutoff_cap())
+		self.cutoff_cap_entry.bind("<Return>", lambda event: self.func_setup_cutoff_cap())
 		self.cutoff_cap_entry.place(x=620, y=86, width=130, height=50)
 		
 		self.cutoffcap_unit = tk.Label(
@@ -580,7 +580,7 @@ class BatteryTestpage(BasePage):
 		)
 		self.cutoffcap_title.place(x=680, y=71, anchor="center")
 
-	def setup_cutoff_cap(self):
+	def func_setup_cutoff_cap(self):
 		raw_data = self.set_cutoff_cap.get()
 		try:
 			target_value = float(raw_data)
@@ -601,7 +601,7 @@ class BatteryTestpage(BasePage):
 			relief="flat",
 			justify="center"  
 		)
-		self.cutoff_time_entry.bind("<Return>", lambda event: self.setup_cutoff_time())
+		self.cutoff_time_entry.bind("<Return>", lambda event: self.func_setup_cutoff_time())
 		self.cutoff_time_entry.place(x=45, y=176, width=130, height=50)
 		
 		self.cutofftime_unit = tk.Label(
@@ -624,7 +624,7 @@ class BatteryTestpage(BasePage):
 		)
 		self.cutofftime_title.place(x=95, y=161, anchor="center")
 
-	def setup_cutoff_time(self):
+	def func_setup_cutoff_time(self):
 		raw_data = self.set_cutoff_time.get()
 		try:
 			target_value = float(raw_data)
@@ -645,7 +645,7 @@ class BatteryTestpage(BasePage):
 			relief="flat",
 			justify="center"  
 		)
-		self.cutoff_volt_entry.bind("<Return>", lambda event: self.setup_cutoff_voltage())
+		self.cutoff_volt_entry.bind("<Return>", lambda event: self.func_setup_cutoff_voltage())
 		self.cutoff_volt_entry.place(x=250, y=176, width=130, height=50)
 		
 		self.cutoffvolt_unit = tk.Label(
@@ -668,7 +668,7 @@ class BatteryTestpage(BasePage):
 		)
 		self.cutoffvolt_title.place(x=310, y=161, anchor="center")
 
-	def setup_cutoff_voltage(self):
+	def func_setup_cutoff_voltage(self):
 		raw_data = self.set_cutoff_voltage.get()
 		try:
 			target_value = float(raw_data)
@@ -689,7 +689,7 @@ class BatteryTestpage(BasePage):
 			relief="flat",
 			justify="center"  
 		)
-		self.cutoff_curr_entry.bind("<Return>", lambda event: self.setup_cutoff_current())
+		self.cutoff_curr_entry.bind("<Return>", lambda event: self.func_setup_cutoff_current())
 		self.cutoff_curr_entry.place(x=435, y=176, width=130, height=50)
 		
 		self.cutoffcurr_unit = tk.Label(
@@ -712,7 +712,7 @@ class BatteryTestpage(BasePage):
 		)
 		self.cutoffcurr_title.place(x=495, y=161, anchor="center")
 
-	def setup_cutoff_current(self):
+	def func_setup_cutoff_current(self):
 		raw_data = self.set_cutoff_current.get()
 		try:
 			target_value = float(raw_data)
@@ -733,7 +733,7 @@ class BatteryTestpage(BasePage):
 			relief="flat",
 			justify="center"  
 		)
-		self.cutoff_engy_entry.bind("<Return>", lambda event: self.setup_cutoff_energy())
+		self.cutoff_engy_entry.bind("<Return>", lambda event: self.func_setup_cutoff_energy())
 		self.cutoff_engy_entry.place(x=620, y=176, width=130, height=50)
 		
 		self.cutoffengy_unit = tk.Label(
@@ -756,7 +756,7 @@ class BatteryTestpage(BasePage):
 		)
 		self.cutoffengy_title.place(x=680, y=161, anchor="center")
 
-	def setup_cutoff_energy(self):
+	def func_setup_cutoff_energy(self):
 		raw_data = self.set_cutoff_energy.get()
 		try:
 			target_value = float(raw_data)
