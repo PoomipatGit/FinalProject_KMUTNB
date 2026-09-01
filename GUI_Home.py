@@ -43,18 +43,18 @@ class bidirectional_DC_supply_app(tk.Tk):
 
         # --- 4. Instantiate & Stack All Pages ---
         self.frames = {}
-#       GUI_page = [homePage, sourcePage, loadPage, batteryTestPage, warningPage, canlogPage, canConfigPage,
-#                     canCommandPage, canSequencePage]
-        GUI_page = [homePage, sourcePage, loadPage, BatteryTestpage,Batterysimulationpage, WarningmessagePage, CanlogPage, Canconfigpage]
-        for F in GUI_page:
         pages = (
             homePage,
             sourcePage,
-            BatteryTestpage,
             loadPage,
+            BatteryTestpage,
+            Batterysimulationpage,
+            WarningmessagePage,
+            CanlogPage,
+            Canconfigpage,
             canMessageSetup,
             canSequencePage,
-            canMessageCommand
+            canMessageCommand,
         )
 
         for F in pages:

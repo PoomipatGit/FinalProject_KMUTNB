@@ -2,6 +2,7 @@ import tkinter as tk
 from datetime import timedelta
 from tkinter import ttk
 from basePage import BasePage
+from warningmessagePage import WarningmessagePage
 class CanlogPage(BasePage):
     def __init__(self, parent, controller):
         # 1. Mount as a tk.Frame child inside master container
@@ -71,9 +72,11 @@ class CanlogPage(BasePage):
         for row in data:
             self.tree.insert("", tk.END, values=row)
 
-        self.tree.pack(fill=tk.BOTH, expand=True)
+        self.tree.grid(row=1, column=0, sticky="nsew", padx=10, pady=(0, 10))
+"""
 if __name__ == "__main__":
     root = tk.Tk()
     root.geometry("950x570")
     app = WarningmessagePage(root)
     root.mainloop()
+"""

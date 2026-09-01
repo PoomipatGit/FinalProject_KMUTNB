@@ -47,7 +47,7 @@ class BasePage(tk.Frame):
             "Battery simulation": Batterysimulationpage,
             "Warning Messages": WarningmessagePage,
             "CAN Log": CanlogPage,
-            "CAN Config": Canconfigpage
+            "CAN Config": Canconfigpage,
             "saved Command": canMessageCommand,
             "Sequence Config": canSequencePage,
         }
