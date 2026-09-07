@@ -162,80 +162,155 @@ def start_can():
 	print("set up can0,can1 done!")	
 
 def test_interleaved_loop(bus, charger, cmd_id_hex, cmd_reg_hex, cmd_val_hex, duration_sec, interval_sec=0.1):
-    """
-    :bus: can.Bus instance
-    :charger: Initialized Charger class
-    :cmd_id_hex: Arbitration ID as hex string or int (e.g., '0x02A43FF0' or '0x0C200780')
-    :cmd_reg_hex: Register address as hex string or int (e.g., '0x0077', '0077', or 0x0077)
-    :cmd_val_hex: 4-byte raw hex value (e.g., '0x0007A120', '00 07 A1 20', or 0x0007A120)
-    :duration_sec: Total duration to loop in seconds
-    :interval_sec: Transmission period (default 0.1s / 100ms)
-    """
-    # 1. Parse CAN ID
-    tx_id = int(cmd_id_hex, 16) if isinstance(cmd_id_hex, str) else int(cmd_id_hex)
+	"""
+	:bus: can.Bus instance
+	:charger: Initialized Charger class
+	:cmd_id_hex: Arbitration ID as hex string or int (e.g., '0x02A43FF0' or '0x0C200780')
+	:cmd_reg_hex: Register address as hex string or int (e.g., '0x0077', '0077', or 0x0077)
+	:cmd_val_hex: 4-byte raw hex value (e.g., '0x0007A120', '00 07 A1 20', or 0x0007A120)
+	:duration_sec: Total duration to loop in seconds
+	:interval_sec: Transmission period (default 0.1s / 100ms)
+	"""
+	# 1. Parse CAN ID
+	tx_id = int(cmd_id_hex, 16) if isinstance(cmd_id_hex, str) else int(cmd_id_hex)
 
-    # 2. Parse 2-byte Register
-    if isinstance(cmd_reg_hex, str):
-        clean_reg = cmd_reg_hex.replace("0x", "").replace(" ", "")
-        reg_bytes = bytes.fromhex(clean_reg.zfill(4))
-    else:
-        reg_bytes = cmd_reg_hex.to_bytes(2, byteorder='big')
+	# 2. Parse 2-byte Register
+	if isinstance(cmd_reg_hex, str):
+		clean_reg = cmd_reg_hex.replace("0x", "").replace(" ", "")
+		reg_bytes = bytes.fromhex(clean_reg.zfill(4))
+	else:
+		reg_bytes = cmd_reg_hex.to_bytes(2, byteorder='big')
 
-    # 3. Parse 4-byte Data Value directly as Raw Hex
-    if isinstance(cmd_val_hex, str):
-        clean_val = cmd_val_hex.replace("0x", "").replace(" ", "")
-        val_bytes = bytes.fromhex(clean_val.zfill(8))
-    else:
-        val_bytes = cmd_val_hex.to_bytes(4, byteorder='big')
+	# 3. Parse 4-byte Data Value directly as Raw Hex
+	if isinstance(cmd_val_hex, str):
+		clean_val = cmd_val_hex.replace("0x", "").replace(" ", "")
+		val_bytes = bytes.fromhex(clean_val.zfill(8))
+	else:
+		val_bytes = cmd_val_hex.to_bytes(4, byteorder='big')
 
-    # Build 8-byte write command payload: [0x03, 0x00, RegH, RegL, Val0, Val1, Val2, Val3]
-    cmd_data = bytearray([0x03, 0x00]) + bytearray(reg_bytes) + bytearray(val_bytes)
-    cmd_msg = can.Message(arbitration_id=tx_id, data=cmd_data, is_extended_id=True)
+	# Build 8-byte write command payload: [0x03, 0x00, RegH, RegL, Val0, Val1, Val2, Val3]
+	cmd_data = bytearray([0x03, 0x00]) + bytearray(reg_bytes) + bytearray(val_bytes)
+	cmd_msg = can.Message(arbitration_id=tx_id, data=cmd_data, is_extended_id=True)
 
-    # Query command to read DC voltage and current (Reg 0x000F)
-    query_data = [0x10, 0x00, 0x00, 0x0F, 0x00, 0x00, 0x00, 0x00]
-    query_msg = can.Message(arbitration_id=0x02A33FF0, data=query_data, is_extended_id=True)
+	# Query command to read DC voltage and current (Reg 0x000F)
+	query_data = [0x10, 0x00, 0x00, 0x0F, 0x00, 0x00, 0x00, 0x00]
+	query_msg = can.Message(arbitration_id=0x02A33FF0, data=query_data, is_extended_id=True)
 
-    start_time = time.time()
-    end_time = start_time + duration_sec
-    print(f"Loop running for {duration_sec}s | CMD Frame: ID={hex(tx_id)} Data={cmd_msg.data.hex(' ').upper()}")
+	start_time = time.time()
+	end_time = start_time + duration_sec
+	print(f"Loop running for {duration_sec}s | CMD Frame: ID={hex(tx_id)} Data={cmd_msg.data.hex(' ').upper()}")
 
-    try:
-        while time.time() < end_time:
-            cycle_start = time.time()
+	try:
+		while time.time() < end_time:
+			cycle_start = time.time()
 
-            # Transmit Keep-Alive / Control Command
-            bus.send(cmd_msg)
+			# Transmit Keep-Alive / Control Command
+			bus.send(cmd_msg)
 
-            # Transmit Telemetry Query
-            bus.send(query_msg)
+			# Transmit Telemetry Query
+			bus.send(query_msg)
 
-            # Receive and decode all incoming frames inside this interval window
-            while True:
-                time_left = (cycle_start + interval_sec) - time.time()
-                if time_left <= 0:
-                    break
+			# Receive and decode all incoming frames inside this interval window
+			while True:
+				time_left = (cycle_start + interval_sec) - time.time()
+				if time_left <= 0:
+					break
 
-                rx_msg = bus.recv(timeout=time_left)
-                if rx_msg is None:
-                    break
+				rx_msg = bus.recv(timeout=time_left)
+				if rx_msg is None:
+					break
 
-                # 0x42 indicates an integer telemetry response frame from the module
-                if len(rx_msg.data) >= 8 and rx_msg.data[0] == 0x42:
-                    charger.res_update("live", rx_msg.arbitration_id, rx_msg.data, "Live Poll")
-                    elapsed = time.time() - start_time
-                    print(f"[{elapsed:6.2f}s] DC Voltage: {charger.voltageDC_display} | Error: {charger.error}")
+				# 0x42 indicates an integer telemetry response frame from the module
+				if len(rx_msg.data) >= 8 and rx_msg.data[0] == 0x42:
+					charger.res_update("live", rx_msg.arbitration_id, rx_msg.data, "Live Poll")
+					elapsed = time.time() - start_time
+					print(f"[{elapsed:6.2f}s] DC Voltage: {charger.voltageDC_display} | Error: {charger.error}")
 
-            # Keep consistent cadence
-            elapsed_cycle = time.time() - cycle_start
-            remaining = interval_sec - elapsed_cycle
-            if remaining > 0:
-                time.sleep(remaining)
+			# Keep consistent cadence
+			elapsed_cycle = time.time() - cycle_start
+			remaining = interval_sec - elapsed_cycle
+			if remaining > 0:
+				time.sleep(remaining)
 
-    except KeyboardInterrupt:
-        print("\nStopped early by user.")
-    finally:
-        print("Loop finished.\n")
+	except KeyboardInterrupt:
+		print("\nStopped early by user.")
+	finally:
+		print("Loop finished.\n")
+
+def test_phoenix_interleaved_loop(bus, charger, cmd_byte0, cmd_byte1, cmd_val_hex, duration_sec, target_addr=0x3F, interval_sec=0.1):
+	"""
+	Sends Phoenix Contact write commands (0x24) and interleaves read requests (0x23).
+	:bus: can.Bus
+	:charger: Initialized Charger class
+	:cmd_byte0: High byte of command index
+	:cmd_byte1: Low byte of command index (e.g. 0x01 for voltage, 0x10 for power ON)
+	:cmd_val_hex: 4-byte raw hex value (e.g. '0x000AD570' for 710V = 710000 mV, or 0xA0 for ON)
+	:duration_sec: Total run time in seconds
+	:target_addr: Target module address (0x3F = Broadcast, 0x00 = Module #0)
+	:interval_sec: Send interval
+	"""
+	# 1. Build Phoenix Contact Write CAN ID (Cmd 0x24, Dev 0x0A, Src 0xF0)
+	# CAN ID: (0x0A << 22) | (0x24 << 16) | (target_addr << 8) | 0xF0
+	tx_cmd_id = (0x0A << 22) | (0x24 << 16) | (target_addr << 8) | 0xF0
+
+	# Parse 4-byte value directly as raw hex
+	if isinstance(cmd_val_hex, str):
+		clean_val = cmd_val_hex.replace("0x", "").replace(" ", "")
+		val_bytes = bytes.fromhex(clean_val.zfill(8))
+	elif isinstance(cmd_val_hex, int):
+		val_bytes = cmd_val_hex.to_bytes(4, byteorder='big', signed=(cmd_val_hex < 0))
+	else:
+		val_bytes = bytes(cmd_val_hex)
+
+	# Phoenix Write Payload: [Byte0, Byte1, 0x00, 0x00, Val_B0, Val_B1, Val_B2, Val_B3]
+	cmd_data = bytearray([cmd_byte0, cmd_byte1, 0x00, 0x00]) + bytearray(val_bytes)
+	cmd_msg = can.Message(arbitration_id=tx_cmd_id, data=cmd_data, is_extended_id=True)
+
+	# 2. Build Phoenix Contact Read CAN ID (Cmd 0x23, Dev 0x0A, Target 0x3F, Src 0xF0) -> 0x02A33FF0
+	tx_read_id = 0x02A33FF0
+	# Read System Voltage on DC side: 10 01 00 00 00 00 00 00
+	read_data = [0x10, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00]
+	read_msg = can.Message(arbitration_id=tx_read_id, data=read_data, is_extended_id=True)
+
+	start_time = time.time()
+	end_time = start_time + duration_sec
+	print(f"Starting Phoenix loop: Write ID={hex(tx_cmd_id)} [{cmd_data.hex(' ').upper()}]")
+
+	try:
+		while time.time() < end_time:
+			cycle_start = time.time()
+
+			# Transmit Write Command (Keep-alive / Setpoint)
+			bus.send(cmd_msg)
+
+			# Transmit Read Query (Read DC Voltage)
+			bus.send(read_msg)
+
+			# Collect and decode responses in the remaining interval window
+			while True:
+				time_left = (cycle_start + interval_sec) - time.time()
+				if time_left <= 0:
+					break
+
+				rx_msg = bus.recv(timeout=time_left)
+				if rx_msg is None:
+					break
+
+				# Check if it's the Read Response (10 01)
+				if len(rx_msg.data) >= 8 and rx_msg.data[0] == 0x10 and rx_msg.data[1] == 0x01:
+					charger.res_update("live", rx_msg.arbitration_id, rx_msg.data, "DC Voltage Read")
+					elapsed = time.time() - start_time
+					print(f"[{elapsed:6.2f}s] Phoenix DC Voltage: {charger.voltageDC_display} | Error: {charger.error}")
+
+			elapsed_cycle = time.time() - cycle_start
+			remaining = interval_sec - elapsed_cycle
+			if remaining > 0:
+				time.sleep(remaining)
+
+	except KeyboardInterrupt:
+		print("\nLoop stopped by user.")
+	finally:
+		print("Completed.")
 			
 if __name__ == "__main__":
 	try:
@@ -250,14 +325,27 @@ if __name__ == "__main__":
 		Mycharger.Build_list("0","0x02A33FF0", "10 01 00 00 00 00 00 00", "Read system voltage on DC side")
 		Mycharger.request_mode("0")
 		"""
-		#loop test function
+		#loop test function niuera
+		"""
 		test_interleaved_loop(bus=bus,charger=Mycharger,
-            cmd_id_hex="0x02A43FF0",
-            cmd_reg_hex="0x0077",
-            cmd_val_hex="0x0007A120",
-            duration_sec=10.0,
-            interval_sec=0.1
-        )
+			cmd_id_hex="0x02A43FF0",
+			cmd_reg_hex="0x0077",
+			cmd_val_hex="0x0007A120",
+			duration_sec=10.0,
+			interval_sec=0.1
+		)
+		"""
+		#loop test function phoenix
+		"""
+		test_phoenix_interleaved_loop(bus=bus,charger=Mycharger,
+			cmd_byte0=0x10,
+			cmd_byte1=0x01,
+			cmd_val_hex="0x000AD570",   #ใช้ 0x000000A0 เปิดเครื่อง
+			duration_sec=10.0,
+			target_addr=0x3F,           # Broadcast to all modules
+			interval_sec=0.1            
+		)
+		"""
 	finally:
 		if 'bus' in locals():
 			bus.shutdown()
