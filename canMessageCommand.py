@@ -307,6 +307,35 @@ class canMessageCommand(BasePage):
     # =========================================================================
     # DataFrame CRUD Operations
     # =========================================================================
+    def get_dataframe(self) -> pd.DataFrame:    
+        """Standardizes and returns the current DataFrame."""
+        if hasattr(self, "df_commands") and not self.df_commands.empty:
+            # Normalize existing DataFrame column headers to lowercase
+            df = self.df_commands.copy()
+            df.columns = [str(c).strip().lower().replace(" ", "_") for c in df.columns]
+            
+            # De-duplicate any duplicated columns if both cases exist
+            df = df.loc[:, ~df.columns.duplicated()]
+            
+            # Ensure standard columns only
+            valid_cols = [c for c in self.CMD_COLUMNS if c in df.columns]
+            return df[valid_cols]
+
+        # Fallback to Treeview rows if DataFrame is empty
+        if hasattr(self, "tree"):
+            rows = [self.tree.item(item)["values"] for item in self.tree.get_children()]
+            if rows:
+                cols = [c.lower() for c in self.CMD_COLUMNS]
+                return pd.DataFrame(rows, columns=cols[:len(rows[0])])
+
+        return pd.DataFrame(columns=self.CMD_COLUMNS)
+
+    def _sync_with_controller(self):
+        """Notifies the main app controller that registered commands updated."""
+        if hasattr(self, "controller") and self.controller is not None:
+            if hasattr(self.controller, "update_shared_commands"):
+                self.controller.update_shared_commands(self.get_dataframe())
+
     def add_new_command(self):
         name = self.var_name.get().strip() or "Cmd_New"
         txrx = self.var_txrx.get() or "Tx"
@@ -329,6 +358,7 @@ class canMessageCommand(BasePage):
         self.df_commands = pd.concat([self.df_commands, pd.DataFrame([new_row])], ignore_index=True)
         self.render_dataframe_to_tree()
         self.log_debug(f"[DF]: Added command '{name}' (ID: {can_id})")
+        self._sync_with_controller()
 
         # Clear input boxes
         self.var_name.set("")
@@ -346,7 +376,8 @@ class canMessageCommand(BasePage):
         self.df_commands = self.df_commands.drop(index=indices_to_drop).reset_index(drop=True)
         self.render_dataframe_to_tree()
         self.log_debug(f"[DF]: Removed command index(es) {indices_to_drop}")
-
+        self._sync_with_controller()
+    
     # =========================================================================
     # Execution Logic (Operating on DataFrame Records)
     # =========================================================================
@@ -434,10 +465,17 @@ class canMessageCommand(BasePage):
         return pd.DataFrame(columns=self.CMD_COLUMNS)
 
     def load_dataframe(self, new_df: pd.DataFrame):
-        """Called automatically by BasePage to load a command list CSV into memory."""
-        self.df_commands = new_df.reset_index(drop=True)
+        """Standardizes columns and eliminates duplicated case headers."""
+        clean_df = new_df.copy()
+        clean_df.columns = [str(c).strip().lower().replace(" ", "_") for c in clean_df.columns]
+        
+        # Merge duplicated column values if columns appeared in both Title and lowercase
+        clean_df = clean_df.loc[:, ~clean_df.columns.duplicated()]
+
         for col in self.CMD_COLUMNS:
-            if col not in self.df_commands.columns:
-                self.df_commands[col] = "RUN" if col == "action" else "--"
+            if col not in clean_df.columns:
+                clean_df[col] = "RUN" if col == "action" else "--"
+
+        self.df_commands = clean_df[self.CMD_COLUMNS].reset_index(drop=True)
         self.render_dataframe_to_tree()
-        self.log_debug(f"[FILE]: Loaded {len(self.df_commands)} commands from CSV")
+        self._sync_with_controller()

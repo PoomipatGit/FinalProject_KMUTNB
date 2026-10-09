@@ -21,37 +21,81 @@ class canSequencePage(BasePage):
         # 1. Single Source of Truth (SSOT): Empty Sequence DataFrame
         self.df_sequence = pd.DataFrame(columns=self.SEQ_COLUMNS)
 
-        # 2. Registered commands database (lookup schema)
-        self.load_command_database()
+        # 2. Command Lookup DataFrame (Pulled dynamically from canMessageCommand/controller)
+        self.df_commands = pd.DataFrame(columns=["name", "txrx", "identifier", "can_data", "comment"])
 
         # 3. Build UI Layout using .grid to avoid geometry manager conflicts with BasePage
         self.setup_styles()
         self.setup_ui()
         self.setup_debug_console()
 
-        # 4. Render initial empty view
+        # 4. Pull initial registered commands and render
+        self.poll_commands_from_controller()
         self.render_dataframe_to_tree()
 
-    def load_command_database(self):
-        """Initializes the empty registered commands DataFrame."""
-        self.df_commands = pd.DataFrame(columns=["name", "txrx", "identifier", "can_data", "comment"])
+    # -------------------------------------------------------------------------
+    # Cross-Page Data Synchronization & Polling
+    # -------------------------------------------------------------------------
+
+    def tkraise(self, *args, **kwargs):
+        """Auto-polls latest command list whenever this page is displayed."""
+        super().tkraise(*args, **kwargs)
+        self.poll_commands_from_controller()
+
+    def poll_commands_from_controller(self):
+        """Attempts to retrieve the active DataFrame from canMessageCommand or controller."""
+        latest_df = None
+
+        if hasattr(self, "controller") and self.controller is not None:
+            # 1. Direct controller getter
+            if hasattr(self.controller, "get_registered_commands"):
+                latest_df = self.controller.get_registered_commands()
+            
+            # 2. Access canMessageCommand frame instance directly from controller frames dict
+            elif hasattr(self.controller, "frames"):
+                # Matches either by class type or string name
+                target_page = None
+                for key, page_instance in self.controller.frames.items():
+                    key_name = key.__name__ if hasattr(key, "__name__") else str(key)
+                    if key_name in ("canMessageCommand", "saved Command"):
+                        target_page = page_instance
+                        break
+
+                if target_page and hasattr(target_page, "get_dataframe"):
+                    latest_df = target_page.get_dataframe()
+
+        if latest_df is not None and not latest_df.empty:
+            self.update_command_dataframe(latest_df)
 
     def update_command_dataframe(self, new_df: pd.DataFrame):
-        """Refreshes available options in the dropdown when a new database is loaded."""
-        self.df_commands = new_df
-        options = self.df_commands["name"].tolist() if not self.df_commands.empty else []
-        self.combo_cmd_select["values"] = options
-        if options:
-            self.combo_cmd_select.current(0)
-            self.var_selected_cmd.set(options[0])
-        else:
-            self.var_selected_cmd.set("")
+        """Refreshes the available options in the dropdown using the passed DataFrame."""
+        if new_df is None or new_df.empty:
+            return
+
+        self.df_commands = new_df.copy()
+        if "name" in self.df_commands.columns:
+            options = self.df_commands["name"].dropna().astype(str).tolist()
+            self.combo_cmd_select["values"] = options
+            
+            # If current selection is empty or not in options, set to first available
+            if options and (self.var_selected_cmd.get() not in options):
+                self.combo_cmd_select.current(0)
+                self.var_selected_cmd.set(options[0])
+            elif not options:
+                self.var_selected_cmd.set("")
+
+    def _on_dropdown_click(self, event=None):
+        """Polls fresh commands every time user clicks the dropdown box."""
+        self.poll_commands_from_controller()
+
+    # -------------------------------------------------------------------------
+    # Styling & Layout
+    # -------------------------------------------------------------------------
 
     def render_dataframe_to_tree(self):
-        """Synchronizes the Treeview visual rows from the DataFrame."""
+        """Synchronizes Treeview rows directly from self.df_sequence."""
         self.tree.delete(*self.tree.get_children())
         for idx, row in self.df_sequence.iterrows():
-            # iid is bound directly to the DataFrame index for direct O(1) row access
             self.tree.insert("", tk.END, iid=str(idx), values=list(row))
 
     def setup_styles(self):
@@ -74,7 +118,6 @@ class canSequencePage(BasePage):
         )
 
     def setup_ui(self):
-        # Mounted at row 1 via .grid() to sit right below the BasePage status bar at row 0
         main_container = tk.Frame(self, bg="#ffffff")
         main_container.grid(row=1, column=0, sticky="nsew", padx=10, pady=(0, 5))
         self.grid_rowconfigure(1, weight=1)
@@ -112,7 +155,6 @@ class canSequencePage(BasePage):
         self.tree.configure(yscrollcommand=vsb.set)
         vsb.pack(side="right", fill="y")
 
-        # Single-click executes RUN; Double-click opens inline cell editor for Value & Comment
         self.tree.bind("<ButtonRelease-1>", self.on_cell_click)
         self.tree.bind("<Double-1>", self.on_double_click_edit)
 
@@ -142,18 +184,17 @@ class canSequencePage(BasePage):
         ).pack(side="left", padx=(0, 6))
 
         self.var_selected_cmd = tk.StringVar()
-        cmd_options = self.df_commands["name"].tolist() if not self.df_commands.empty else []
         self.combo_cmd_select = ttk.Combobox(
             input_container,
             textvariable=self.var_selected_cmd,
-            values=cmd_options,
+            values=[],
             state="readonly",
             width=20,
             font=("Helvetica", 9)
         )
         self.combo_cmd_select.pack(side="left", padx=5)
-        if cmd_options:
-            self.combo_cmd_select.current(0)
+        # Re-query commands when user clicks dropdown
+        self.combo_cmd_select.bind("<Button-1>", self._on_dropdown_click)
 
         tk.Label(
             input_container,
@@ -200,7 +241,6 @@ class canSequencePage(BasePage):
         ).pack(side="right", padx=5)
 
     def setup_debug_console(self):
-        # Mounted at row 2 via .grid()
         debug_container = tk.LabelFrame(
             self,
             text=" Debug / Mock CAN Console ",
@@ -267,7 +307,10 @@ class canSequencePage(BasePage):
     # -------------------------------------------------------------------------
 
     def add_step_to_dataframe(self):
-        selected_name = self.var_selected_cmd.get()
+        # Refresh registry before lookup
+        self.poll_commands_from_controller()
+
+        selected_name = self.var_selected_cmd.get().strip()
         if not selected_name:
             self.log_debug("[WARN]: No command selected to add.")
             return
@@ -279,18 +322,18 @@ class canSequencePage(BasePage):
 
         cmd = matched.iloc[0]
         new_row = {
-            "name": cmd["name"],
-            "txrx": cmd["txrx"],
-            "identifier": cmd["identifier"],
-            "can_data": cmd["can_data"],
-            "value": self.var_init_value.get() or "--",
-            "comment": cmd["comment"],
+            "name": cmd.get("name", selected_name),
+            "txrx": cmd.get("txrx", "Tx"),
+            "identifier": cmd.get("identifier", "00 00 00 00"),
+            "can_data": cmd.get("can_data", "00 00 00 00 00 00 00 00"),
+            "value": self.var_init_value.get().strip() or "--",
+            "comment": cmd.get("comment", ""),
             "action": "RUN",
             "result": "--"
         }
         self.df_sequence = pd.concat([self.df_sequence, pd.DataFrame([new_row])], ignore_index=True)
         self.render_dataframe_to_tree()
-        self.log_debug(f"[DF]: Added step '{selected_name}' (Total steps: {len(self.df_sequence)})")
+        self.log_debug(f"[DF]: Added sequence step '{selected_name}' (Total steps: {len(self.df_sequence)})")
 
     def remove_step_from_dataframe(self):
         selected_items = self.tree.selection()
@@ -304,7 +347,7 @@ class canSequencePage(BasePage):
         self.log_debug(f"[DF]: Removed sequence step(s) {indices_to_drop}")
 
     def on_double_click_edit(self, event):
-        """In-place cell editing that updates both the DataFrame and Treeview."""
+        """In-place cell editing updating both DataFrame and Treeview."""
         if self.tree.identify_region(event.x, event.y) != "cell":
             return
 
