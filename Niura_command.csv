@@ -1,0 +1,51 @@
+Name,TxRx,Identifier,CAN Data,Value,Comment,Action
+Power_ON,Tx,0C 20 07 80,03 00 00 30 00 00 00 00,Startup,Set module power startup (ON),RUN
+Power_OFF,Tx,0C 20 07 80,03 00 00 30 00 01 00 00,Shutdown,Set module power shutdown (OFF),RUN
+Mode_Rectifier,Tx,0C 20 07 80,03 00 00 2F 00 02 00 00,Rectifier,Set mode: Rectifier (Charge AC->DC),RUN
+Mode_Grid_Connected,Tx,0C 20 07 80,03 00 00 2F 00 00 00 00,Grid,Set mode: Grid connected (Discharge DC->AC),RUN
+Mode_Off_Grid,Tx,0C 20 07 80,03 00 00 2F 00 01 00 00,Off-Grid,Set mode: Off-grid inverter mode,RUN
+Set_DC_Volt,Tx,0C 20 07 80,03 00 00 77 xx xx xx xx,xx V,Set DC link target voltage (mV),RUN
+Set_DC_Curr,Tx,0C 20 07 80,03 00 00 79 xx xx xx xx,xx A,Set DC current (+charge / -discharge mA),RUN
+Set_Grid_Active_Pwr,Tx,0C 20 07 80,03 00 00 80 xx xx xx xx,xx W,Set grid active power P_ac (W),RUN
+Set_Grid_Reactive_Pwr,Tx,0C 20 07 80,03 00 00 81 xx xx xx xx,xx Var,Set total reactive power (Var),RUN
+Set_Power_Factor,Tx,0C 20 07 80,03 00 00 82 xx xx xx xx,xx PF,Set power factor (scale 0.001),RUN
+Set_Reactive_Mode,Tx,0C 20 07 80,03 00 00 83 xx xx 00 00,xx Mode,Select reactive power mode (None/PF/Var),RUN
+Set_Rated_AC_Volt_Freq,Tx,0C 20 07 80,03 00 00 84 xx xx xx xx,xx V/Hz,Set rated AC voltage (0.1V) & freq (mHz),RUN
+Set_Phase_Mismatch,Tx,0C 20 07 80,03 00 00 85 00 xx 00 00,xx,Set phase mismatch allowed (0:No 1:Yes),RUN
+Set_Anti_Islanding,Tx,0C 20 07 80,03 00 00 86 00 xx 00 00,xx,Set anti-islanding (0:Enable 1:Disable),RUN
+Set_DC_UV_Limit,Tx,0C 20 07 80,03 00 00 87 xx xx xx xx,xx V,Set DC undervoltage limit (0.1V),RUN
+Set_DC_OV_Limit,Tx,0C 20 07 80,03 00 00 88 xx xx xx xx,xx V,Set DC overvoltage limit (0.1V),RUN
+Set_AC_UV_Prot,Tx,0C 20 07 80,03 00 00 89 xx xx xx xx,xx V/s,Set AC undervoltage prot (0.1V & trip 0.01s),RUN
+Set_AC_OV_Prot,Tx,0C 20 07 80,03 00 00 8A xx xx xx xx,xx V/s,Set AC overvoltage prot (0.1V & trip 0.01s),RUN
+Set_AC_UF_Prot1,Tx,0C 20 07 80,03 00 00 8B xx xx xx xx,xx Hz/s,Set AC under-frequency 1 (0.01Hz & 0.01s),RUN
+Set_AC_OF_Prot1,Tx,0C 20 07 80,03 00 00 8C xx xx xx xx,xx Hz/s,Set AC over-frequency 1 (0.01Hz & 0.01s),RUN
+Set_AC_UF_Prot2,Tx,0C 20 07 80,03 00 00 8D xx xx xx xx,xx Hz/s,Set AC under-frequency 2 (0.01Hz & 0.01s),RUN
+Set_AC_OF_Prot2,Tx,0C 20 07 80,03 00 00 8E xx xx xx xx,xx Hz/s,Set AC over-frequency 2 (0.01Hz & 0.01s),RUN
+Set_Altitude,Tx,0C 20 07 80,03 00 00 17 00 00 xx xx,xx m,Set module working altitude (1000-5000m),RUN
+Set_Group_Num,Tx,0C 20 07 80,03 00 00 1E 00 00 00 xx,xx,Set module group number (0-7),RUN
+Set_Address_Alloc,Tx,0C 20 07 80,03 00 00 1F 00 xx 00 00,xx,Set address allocation (0:Auto 1:DIP),RUN
+Reset_AC_UV_OffGrid,Tx,0C 20 07 80,03 00 00 24 00 01 00 00,Reset,AC undervoltage reset (Off-grid),RUN
+Reset_DC_UV_Rectifier,Tx,0C 20 07 80,03 00 00 25 00 01 00 00,Reset,DC undervoltage reset (Rectifier),RUN
+Reset_DC_OV,Tx,0C 20 07 80,03 00 00 31 00 01 00 00,Reset,DC overvoltage reset,RUN
+Reset_DC_UV_Inverter,Tx,0C 20 07 80,03 00 00 42 00 01 00 00,Reset,DC undervoltage reset (Inverter),RUN
+Reset_DC_ShortCircuit,Tx,0C 20 07 80,03 00 00 44 00 01 00 00,Reset,DC short-circuit fault reset,RUN
+Read_AC_Phase_A_VI,Tx,0C 20 07 80,10 00 00 01 00 00 00 00,--,Read AC Phase A voltage (0.1V) & current (0.01A),RUN
+Read_AC_Phase_B_VI,Tx,0C 20 07 80,10 00 00 02 00 00 00 00,--,Read AC Phase B voltage (0.1V) & current (0.01A),RUN
+Read_AC_Phase_C_VI,Tx,0C 20 07 80,10 00 00 03 00 00 00 00,--,Read AC Phase C voltage (0.1V) & current (0.01A),RUN
+Read_AC_Line_AB,Tx,0C 20 07 80,10 00 00 04 00 00 00 00,--,Read AC Line AB voltage (0.1V),RUN
+Read_AC_Line_BC,Tx,0C 20 07 80,10 00 00 05 00 00 00 00,--,Read AC Line BC voltage (0.1V),RUN
+Read_AC_Line_CA,Tx,0C 20 07 80,10 00 00 06 00 00 00 00,--,Read AC Line CA voltage (0.1V),RUN
+Read_Phase_A_Power,Tx,0C 20 07 80,10 00 00 07 00 00 00 00,--,Read Phase A active (W) & reactive power (Var),RUN
+Read_Phase_B_Power,Tx,0C 20 07 80,10 00 00 08 00 00 00 00,--,Read Phase B active (W) & reactive power (Var),RUN
+Read_Phase_C_Power,Tx,0C 20 07 80,10 00 00 09 00 00 00 00,--,Read Phase C active (W) & reactive power (Var),RUN
+Read_AC_Frequency,Tx,0C 20 07 80,10 00 00 0A 00 00 00 00,--,Read AC frequency (mHz),RUN
+Read_Module_Temp,Tx,0C 20 07 80,10 00 00 0B 00 00 00 00,--,Read module panel temperature (0.001 degC),RUN
+Read_Total_Active_Pwr,Tx,0C 20 07 80,10 00 00 0C 00 00 00 00,--,Read total AC active power (W),RUN
+Read_Total_Reactive_Pwr,Tx,0C 20 07 80,10 00 00 0D 00 00 00 00,--,Read total AC reactive power (Var),RUN
+Read_Total_Apparent_Pwr,Tx,0C 20 07 80,10 00 00 0E 00 00 00 00,--,Read total AC apparent power (VA),RUN
+Read_DC_Volt_Curr,Tx,0C 20 07 80,10 00 00 0F 00 00 00 00,--,Read DC side voltage (0.1V) & current (0.01A),RUN
+Read_Rated_Power,Tx,0C 20 07 80,10 00 00 11 00 00 00 00,--,Read rated output power (0.001W),RUN
+Read_Alarm_Status,Tx,0C 20 07 80,10 00 00 40 00 00 00 00,--,Read 32-bit alarm and status bits,RUN
+Read_Group_Address,Tx,0C 20 07 80,10 00 00 43 00 00 00 00,--,Read group number and module address,RUN
+Read_Altitude_Setting,Tx,0C 20 07 80,10 00 00 4A 00 00 00 00,--,Read current altitude setting (m),RUN
+Read_Software_Version,Tx,0C 20 07 80,10 00 00 56 00 00 00 00,--,Read module software version,RUN

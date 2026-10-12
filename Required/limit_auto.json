@@ -1,0 +1,10 @@
+{
+    "pos_voltage_limit": 0.0,
+    "neg_voltage_limit": 0.0,
+    "pos_current_limit": 0.0,
+    "neg_current_limit": 0.0,
+    "pos_power_limit": 0.0,
+    "neg_power_limit": 0.0,
+    "max_temperature": 0.0,
+    "max_energy_supplied": 0.0
+}

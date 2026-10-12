@@ -1,0 +1,39 @@
+Files for GUI
+
+Core GUI + Frame
+
+* GUI_Home.py: The main application entry point and central controller. Initializes the root window, maintains shared_data and command dataframes, tracks navigation history, and stacks all page frames.
+* basePage.py: The parent template class that defines standard UI geometry, colors, headers, and navigation methods inherited by all sub-pages.
+* homePage.py: The primary landing dashboard displaying system-wide telemetry 
+
+Power & Testing Operation Pages
+
+* sourcePage.py
+* loadPage.py
+* seamlessPage.py
+* batterytest.py
+* batterysimulation.py
+
+CAN Communication & Command Sequencing
+
+* CAN_Commands_Database.xlsx: CAN command from mamnual, use fro human only
+* Canconfig.py: config page, not messages
+* canMessageCommand.py: total saved command
+* canMessageSetup.py: Unused
+* canSequencePage.py: make sequence witth saved CAN command
+* canlogPage.py: Display BUS log
+
+
+Utilities, Diagnostics & System Files
+
+* warningmessagePage.py: Alarm, fault, and interlock indicator page displaying hardware protection trips (OVP, OCP, OTP, watchdog faults).
+* file_manager.py: Helper utility handling local file I/O, such as loading sequences, reading configurations, and saving telemetry logs.
+* Note.txt: Scratchpad / working notes for development and thesis writeups.
+* README.md: Project documentation covering prerequisites, wiring instructions, and execution steps.
+* tempCodeRunnerFile.py: Temporary scratch file automatically created by the VS Code Code Runner extension.
+
+
+
+BackGround Gateway
+
+*BackGroundWorker_main.py is main background worker

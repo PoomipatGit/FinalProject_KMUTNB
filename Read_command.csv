@@ -1,0 +1,21 @@
+Name,TxRx,Identifier,CAN Data,Value,Comment,Action
+Read_AC_Phase_A_VI,Tx,0C 20 07 80,10 00 00 01 00 00 00 00,--,Read AC Phase A voltage (0.1V) & current (0.01A),RUN
+Read_AC_Phase_B_VI,Tx,0C 20 07 80,10 00 00 02 00 00 00 00,--,Read AC Phase B voltage (0.1V) & current (0.01A),RUN
+Read_AC_Phase_C_VI,Tx,0C 20 07 80,10 00 00 03 00 00 00 00,--,Read AC Phase C voltage (0.1V) & current (0.01A),RUN
+Read_AC_Line_AB,Tx,0C 20 07 80,10 00 00 04 00 00 00 00,--,Read AC Line AB voltage (0.1V),RUN
+Read_AC_Line_BC,Tx,0C 20 07 80,10 00 00 05 00 00 00 00,--,Read AC Line BC voltage (0.1V),RUN
+Read_AC_Line_CA,Tx,0C 20 07 80,10 00 00 06 00 00 00 00,--,Read AC Line CA voltage (0.1V),RUN
+Read_Phase_A_Power,Tx,0C 20 07 80,10 00 00 07 00 00 00 00,--,Read Phase A active (W) & reactive power (Var),RUN
+Read_Phase_B_Power,Tx,0C 20 07 80,10 00 00 08 00 00 00 00,--,Read Phase B active (W) & reactive power (Var),RUN
+Read_Phase_C_Power,Tx,0C 20 07 80,10 00 00 09 00 00 00 00,--,Read Phase C active (W) & reactive power (Var),RUN
+Read_AC_Frequency,Tx,0C 20 07 80,10 00 00 0A 00 00 00 00,--,Read AC frequency (mHz),RUN
+Read_Module_Temp,Tx,0C 20 07 80,10 00 00 0B 00 00 00 00,--,Read module panel temperature (0.001 degC),RUN
+Read_Total_Active_Pwr,Tx,0C 20 07 80,10 00 00 0C 00 00 00 00,--,Read total AC active power (W),RUN
+Read_Total_Reactive_Pwr,Tx,0C 20 07 80,10 00 00 0D 00 00 00 00,--,Read total AC reactive power (Var),RUN
+Read_Total_Apparent_Pwr,Tx,0C 20 07 80,10 00 00 0E 00 00 00 00,--,Read total AC apparent power (VA),RUN
+Read_DC_Volt_Curr,Tx,0C 20 07 80,10 00 00 0F 00 00 00 00,--,Read DC side voltage (0.1V) & current (0.01A),RUN
+Read_Rated_Power,Tx,0C 20 07 80,10 00 00 11 00 00 00 00,--,Read rated output power (0.001W),RUN
+Read_Alarm_Status,Tx,0C 20 07 80,10 00 00 40 00 00 00 00,--,Read 32-bit alarm and status bits,RUN
+Read_Group_Address,Tx,0C 20 07 80,10 00 00 43 00 00 00 00,--,Read group number and module address,RUN
+Read_Altitude_Setting,Tx,0C 20 07 80,10 00 00 4A 00 00 00 00,--,Read current altitude setting (m),RUN
+Read_Software_Version,Tx,0C 20 07 80,10 00 00 56 00 00 00 00,--,Read module software version,RUN

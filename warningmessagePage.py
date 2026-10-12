@@ -53,18 +53,28 @@ class WarningmessagePage(BasePage):
         style.map("Custom.Treeview", background=[("active", self.bgcolor1)])
 
     def create_table(self):
-        #columns: กำหนด Identifier (ID อ้างอิง) ประจำแต่ละคอลัมน์ ใช้สำหรับเขียนโค้ด
-        #headers: กำหนดข้อความที่แสดงจริงบนหน้าจอให้ผู้ใช้เห็น
+        # Container frame at Row 1 of BasePage
+        table_container = tk.Frame(self, bg=self.bgcolor1)
+        table_container.grid(row=1, column=0, sticky="nsew", padx=10, pady=(0, 10))
+        table_container.grid_rowconfigure(0, weight=1)
+        table_container.grid_columnconfigure(0, weight=1)
+
         columns = ("type", "detail", "action")
         headers = ("Type", "Detail", "Action taken")
 
-        # ใส่ style="Custom.Treeview" เพื่อดึงค่าสีที่ตั้งไว้มาใช้
-        self.tree = ttk.Treeview(self, columns=columns, show="headings", style="Custom.Treeview")
+        self.tree = ttk.Treeview(table_container, columns=columns, show="headings", style="Custom.Treeview")
 
         for col, text in zip(columns, headers):
             self.tree.heading(col, text=text, anchor=tk.W)
             self.tree.column(col, anchor=tk.W, stretch=True)
-            
+
+        # Scrollbar inside the table_container
+        vsb = ttk.Scrollbar(table_container, orient="vertical", command=self.tree.yview)
+        self.tree.configure(yscrollcommand=vsb.set)
+
+        self.tree.grid(row=0, column=0, sticky="nsew")
+        vsb.grid(row=0, column=1, sticky="ns")
+
         data = [
             ("Communication", "CAN Message cannot send/receive", "Reconnecting......."),
             ("Power", "Input power not sufficient", "None, please manual check"),
@@ -74,13 +84,6 @@ class WarningmessagePage(BasePage):
             ("Parameter warning", "Under/Over Temperature", ""),
             ("Fault", "Current spiked to X A", "Shutdown output"),
         ]
-        # --- 2. วนลูปเพิ่มข้อมูลลงในตาราง ---
+
         for row in data:
             self.tree.insert("", tk.END, values=row)
-
-        self.tree.pack(fill=tk.BOTH, expand=True)
-if __name__ == "__main__":
-    root = tk.Tk()
-    root.geometry("950x570")
-    app = WarningmessagePage(root)
-    root.mainloop()
