@@ -5,6 +5,7 @@ import os
 import numpy as np
 import pandas as pd
 import threading
+
 class CanbusProtocol:
     def __init__(self):
         #ตั้งค่า bus
