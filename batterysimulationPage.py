@@ -76,6 +76,7 @@ class Batterysimulationpage(BasePage):
 		self.soc_low_text = tk.StringVar()
 		self.parallel_series_text = tk.StringVar()
 		self.soc_now_text = tk.StringVar()
+		self.active_model_name_var = tk.StringVar(value="Active Model: [None]")
 		# --- 3. Build UI Widgets ---
 		self.monitor_battery()
 		self.limit()
@@ -104,6 +105,21 @@ class Batterysimulationpage(BasePage):
 		# --- 4. Start Single Unified Loop ---
 		self.update_loop()
 		self.update_battery_level()
+		self.loaded_model_path = ""
+		self.sync_from_shared_data()
+
+		self.lbl_active_model = tk.Label(
+			self,
+			textvariable=self.active_model_name_var,
+			font=("Arial", 11, "bold"),
+			bg=self.bgcolor2,
+			fg="#00FFCC",
+			anchor="w",
+			padx=10,
+			relief="groove",
+			bd=1
+		)
+		self.lbl_active_model.place(x=10, y=538, width=930, height=30)
 
 
 	# -------------------------------------------------------------------------
@@ -141,6 +157,31 @@ class Batterysimulationpage(BasePage):
 		# 3. Schedule ONLY ONE next cycle in 100ms
 		self.after(100, self.update_loop)
 
+	def sync_from_shared_data(self):
+		"""Checks if a model was selected on Source/Load/Seamless and updates the screen."""
+		if hasattr(self, "controller") and self.controller and hasattr(self.controller, "shared_data"):
+			shared_path = self.controller.shared_data.get("battery_model_file_path", "")
+			shared_model = self.controller.shared_data.get("battery_model", {})
+
+			# If a model exists in shared_data and differs from what is currently loaded
+			if shared_path and getattr(self, "loaded_model_path", "") != shared_path:
+				self.loaded_model_path = shared_path
+				filename = os.path.basename(shared_path)
+				self.active_model_name_var.set(f"Active Model: {filename} ({shared_path})")
+
+				# If model dictionary is already parsed, populate the fields
+				if shared_model:
+					self.load_config_data(shared_model)
+				elif os.path.exists(shared_path):
+					try:
+						with open(shared_path, "r", encoding="utf-8") as f:
+							data = json.load(f)
+						self.load_config_data(data)
+					except Exception as e:
+						print(f"[BATTERY SIM]: Failed to load file from shared path: {e}")
+
+		# Re-check every 500ms
+		self.after(500, self.sync_from_shared_data)
 	# -------------------------------------------------------------------------
 	# UI Component Construction Methods
 	# -------------------------------------------------------------------------

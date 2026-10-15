@@ -110,9 +110,16 @@ class bidirectional_DC_supply_app(tk.Tk):
 		if record_history and self.current_page is not None and self.current_page != cont:
 			self.page_history.append(self.current_page)
 
-		# Update active pointer and raise frame
+		# 1. Resolve and store the active pointer
 		self.current_page = cont
-		self.frames[cont].tkraise()
+		target_frame = self.frames[cont]
+
+		# 2. Raise the frame to the front
+		target_frame.tkraise()
+
+		# 3. Trigger immediate sync if the page supports it (e.g., Batterysimulationpage)
+		if hasattr(target_frame, "sync_from_shared_data"):
+			target_frame.sync_from_shared_data()
 
 	def go_back(self):
 		"""Pops the most recent page from history and raises it."""

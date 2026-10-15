@@ -747,23 +747,6 @@ class sourcePage(BasePage):
 		elif category == "Battery Sim":
 			self.choose_battery_model_file()
 
-	def choose_battery_model_file(self):
-			"""Opens file dialog to select a battery model file (.json) and sends its path."""
-			chosen_file = filedialog.askopenfilename(
-				parent=self,
-				title="Select Battery Model File",
-				filetypes=[
-					("JSON Files (*.json)", "*.json"),
-					("All Files (*.*)", "*.*")
-				],
-			)
-			if chosen_file:
-				self.battery_model_file_path = chosen_file
-				if hasattr(self, "controller") and self.controller and hasattr(self.controller, "shared_data"):
-					self.controller.shared_data["battery_model_file_path"] = chosen_file
-
-				print(f"[BATTERY MODEL SELECTED]: {chosen_file}")
-				self.send_battery_sim_mode()
 
 	def sync_mode_state(self):
 		cat = self.category_var.get()
@@ -1049,21 +1032,35 @@ class sourcePage(BasePage):
 			self._dispatch_to_worker(payload)
 
 	def choose_battery_model_file(self):
-			"""Opens file dialog to select a battery model file (.json) and sends its path."""
-			chosen_file = filedialog.askopenfilename(
-				parent=self,
-				title="Select Battery Model File",
-				filetypes=[
-					("JSON Files (*.json)", "*.json"),
-					("All Files (*.*)", "*.*")
-				],
-			)
-			if chosen_file:
-				self.battery_model_file_path = chosen_file
-				if hasattr(self, "controller") and self.controller and hasattr(self.controller, "shared_data"):
-					self.controller.shared_data["battery_model_file_path"] = chosen_file
-				print(f"[BATTERY MODEL SELECTED]: {chosen_file}")
-				self.send_battery_sim_mode()
+		"""Opens file dialog to select a battery model file (.json) and pushes it to controller."""
+		chosen_file = filedialog.askopenfilename(
+			parent=self,
+			title="Select Battery Model File",
+			filetypes=[
+				("JSON Files (*.json)", "*.json"),
+				("All Files (*.*)", "*.*")
+			],
+		)
+		if chosen_file:
+			self.battery_model_file_path = chosen_file
+			
+			# Parse JSON data
+			model_data = {}
+			try:
+				import json
+				with open(chosen_file, "r", encoding="utf-8") as f:
+					model_data = json.load(f)
+			except Exception as e:
+				print(f"[ERROR]: Failed to parse battery model file: {e}")
+
+			# Store path and parameters in controller shared memory
+			if hasattr(self, "controller") and self.controller and hasattr(self.controller, "shared_data"):
+				self.controller.shared_data["battery_model_file_path"] = chosen_file
+				self.controller.shared_data["battery_model"] = model_data
+				self.controller.shared_data["model_file_exists"] = True
+
+			print(f"[BATTERY MODEL SELECTED]: {chosen_file}")
+			self.send_battery_sim_mode()
 
 	# -------------------------------------------------------------------------
 	# Dispatch Router & Mode Switch Event
