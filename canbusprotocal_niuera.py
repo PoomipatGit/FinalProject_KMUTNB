@@ -465,5 +465,5 @@ class CanbusProtocol:
     
 if __name__ == "__main__":
     protocol = CanbusProtocol()
-    protocol.message_sendandres_loop_frombits(protno_hex=0x061, ptp=1, dstaddr_hex=0x00, srcaddr_hex=0xF0, group_oct=0o0, 
-                                    func_code=0x10,reg_adds_high=0x00, reg_adds_low=0x01, interval=0.5, timeout=1.0)#data
+    #protocol.message_sendandres_loop_frombits(protno_hex=0x061, ptp=1, dstaddr_hex=0x00, srcaddr_hex=0xF0, group_oct=0o0, 
+    #                                func_code=0x10,reg_adds_high=0x00, reg_adds_low=0x01, interval=0.5, timeout=1.0)#data
