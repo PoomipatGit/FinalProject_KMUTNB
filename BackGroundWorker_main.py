@@ -79,7 +79,7 @@ class ConstantTelemetryWorker:
 				self.shared_data["dc_current"] = 5.21
 				self.shared_data["dc_power"] = round(48.05 * 5.21, 2)
 				self.shared_data["can_status"] = "Connected"
-				print(f"Running {t_start:.2f} seconds, Current Telemetry: Voltage={self.shared_data['dc_voltage']}, Current={self.shared_data['dc_current']}, Power={self.shared_data['dc_power']}")
+				#print(f"Running {t_start:.2f} seconds, Current Telemetry: Voltage={self.shared_data['dc_voltage']}, Current={self.shared_data['dc_current']}, Power={self.shared_data['dc_power']}")
 				dt = time.time() - t_start
 				sleep_time = 0.01 - dt
 				time.sleep(sleep_time if sleep_time > 0 else 0.001)
