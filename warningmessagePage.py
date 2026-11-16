@@ -15,6 +15,7 @@ class WarningmessagePage(BasePage):
         
         self.apply_table_style()
         self.create_table()
+        self.poll_warnings()  # Start polling for warning updates
 
     def apply_table_style(self):
         """
@@ -87,3 +88,27 @@ class WarningmessagePage(BasePage):
 
         for row in data:
             self.tree.insert("", tk.END, values=row)
+    def poll_warnings(self):
+        """Syncs active faults/warnings from controller.shared_data['error_log']."""
+        if hasattr(self, "controller") and self.controller and hasattr(self.controller, "shared_data"):
+            errors = self.controller.shared_data.get("error_log", [])
+            current_rows = [self.tree.item(i)["values"] for i in self.tree.get_children()]
+
+            # Normalize strings or dicts into 3-column tuples: (Type, Detail, Action taken)
+            formatted = []
+            for err in errors:
+                if isinstance(err, dict):
+                    formatted.append([
+                        err.get("type", "Fault"),
+                        err.get("detail", str(err)),
+                        err.get("action", "Shutdown output"),
+                    ])
+                else:
+                    formatted.append(["Fault", str(err), "Check System"])
+
+            if formatted != current_rows:
+                self.tree.delete(*self.tree.get_children())
+                for row in formatted:
+                    self.tree.insert("", tk.END, values=row)
+
+        self.after(250, self.poll_warnings)

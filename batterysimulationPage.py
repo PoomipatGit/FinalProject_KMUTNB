@@ -126,9 +126,20 @@ class Batterysimulationpage(BasePage):
 	# Unified Live Update Loop
 	# -------------------------------------------------------------------------
 	def update_loop(self):
-		# 1. Update text variables for capacity & VAW
-		self.capacity_text.set(f"{self.ah_current} Ah\n {self.wh_current} Wh")
-		self.vaw_text.set(f"{self.volt} V\n{self.amp} A\n {self.watt} W")
+		# 1. Pull live telemetry from controller if available
+		if hasattr(self, "controller") and self.controller and hasattr(self.controller, "shared_data"):
+			data = self.controller.shared_data
+			self.volt = data.get("dc_voltage", self.volt)
+			self.amp = data.get("dc_current", self.amp)
+			self.watt = data.get("dc_power", self.watt)
+			self.ah_current = data.get("battery_ah", self.ah_current)
+			self.wh_current = data.get("battery_wh", self.wh_current)
+			if self.running_time and "battery_soc" in data:
+				self.soc_now_val = data["battery_soc"]
+
+		# 2. Update text variables for capacity & VAW
+		self.capacity_text.set(f"{self.ah_current:.2f} Ah\n {self.wh_current:.2f} Wh")
+		self.vaw_text.set(f"{self.volt:.2f} V\n{self.amp:.2f} A\n {self.watt:.2f} W")
 		self.init_voc_text.set(f"{self.init_voc_val} V")
 		self.init_soc_text.set(f"{self.init_soc_val} %")
 		self.init_cap_text.set(f"{self.init_cap_val} Ah")
@@ -140,23 +151,23 @@ class Batterysimulationpage(BasePage):
 		self.soc_high_text.set(f"{self.soc_high_val} %")
 		self.soc_low_text.set(f"{self.soc_low_val} %")
 		self.parallel_series_text.set(f"{self.parallel}P / {self.series}S")
-		self.soc_now_text.set(f"{int(max(0, min(100, round(int(self.soc_now_val)))))}%")
+		self.soc_now_text.set(f"{int(max(0, min(100, round(self.soc_now_val))))}%")
 		
-		# 2. Timer counter logic
-		if self.running_time :
-			self.run_sec += 0.1
-			total_secs = int(self.run_sec)
-			hours = total_secs // 3600
-			mins = (total_secs % 3600) // 60
-			secs = total_secs % 60
-			tenths = int((self.run_sec * 10) % 10)  # ดึงเศษ 0.1 ออกมา 1 หลัก
-			self.run_time_sec.set(f"{hours:02d}:{mins:02d}:{secs:02d}.{tenths}")
-			self.soc_now_val = min(100.0, self.soc_now_val + 1)
-			self.soc_now_val = self.soc_now_val+1
+		# 3. Timer counter logic (and auto-reset if global Emergency Stop was pressed)
+		if self.running_time:
+			if hasattr(self, "controller") and self.controller and not self.controller.shared_data.get("is_running", True):
+				self.run_stop_setup()
+			else:
+				self.run_sec += 0.1
+				total_secs = int(self.run_sec)
+				hours = total_secs // 3600
+				mins = (total_secs % 3600) // 60
+				secs = total_secs % 60
+				tenths = int((self.run_sec * 10) % 10)
+				self.run_time_sec.set(f"{hours:02d}:{mins:02d}:{secs:02d}.{tenths}")
 
-		# 3. Schedule ONLY ONE next cycle in 100ms
+		# 4. Schedule ONLY ONE next cycle in 100ms
 		self.after(100, self.update_loop)
-
 	def sync_from_shared_data(self):
 		"""Checks if a model was selected on Source/Load/Seamless and updates the screen."""
 		if hasattr(self, "controller") and self.controller and hasattr(self.controller, "shared_data"):
@@ -843,22 +854,39 @@ class Batterysimulationpage(BasePage):
 			)
 			self.run_button.place(x=865, y=498, anchor="center")
 	
+	def _safe_float(self, var, default=0.0):
+		try:
+			return float(var.get())
+		except (ValueError, TypeError):
+			return default
+
 	def run_stop_setup(self):
 		if self.run_button.cget("text") == "RUN":
-			print("Run!")
-			self.run_button.config(
-				text="STOP", 
-				bg="#FF4D4D",              
-				activebackground="#CC0000"
-			)
+			self.run_button.config(text="STOP", bg="#FF4D4D", activebackground="#CC0000")
 			self.running_time = True
+			self.sync_to_controller()
+			if hasattr(self, "controller") and self.controller and hasattr(self.controller, "shared_data"):
+				self.controller.shared_data.update({
+					"mode": "Battery Sim",
+					"active_category": "Battery Sim",
+					"system_stage": "Output",
+					"is_running": True,
+					"sim_limits": {
+						"discharge_amp": self._safe_float(self.discharge_amp),
+						"discharge_watt": self._safe_float(self.discharge_watt),
+						"charge_amp": self._safe_float(self.charge_amp),
+						"charge_watt": self._safe_float(self.charge_watt),
+						"setting_volt": self._safe_float(self.set_volt),
+					},
+				})
+				print("[BATTERY SIM]: Dispatched RUN to worker.")
 		else:
-			self.run_button.config(
-				text="RUN",
-				bg=self.bgcolor2,              
-				activebackground="#17033b"
-			)
+			self.run_button.config(text="RUN", bg=self.bgcolor2, activebackground="#17033b")
 			self.running_time = False
+			if hasattr(self, "controller") and self.controller and hasattr(self.controller, "shared_data"):
+				self.controller.shared_data["system_stage"] = "Standby"
+				self.controller.shared_data["is_running"] = False
+				print("[BATTERY SIM]: Dispatched STOP to worker.")
 
 	def button_save(self):
 		self.save_button = tk.Button(
@@ -1146,7 +1174,7 @@ class Batterysimulationpage(BasePage):
 			relief="flat",
 			justify="center"  
 		)
-		inner_r_edit.insert(0, str(self.full_volt_val))
+		inner_r_edit.insert(0, str(self.inner_resist_val))
 		inner_r_edit.bind("<Return>", lambda event: (func_inner_resist(), popup.focus_set()))
 		inner_r_edit.place(x=190, y=85, width=80, height=40)
 		inner_r_unit = tk.Label(

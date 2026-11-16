@@ -659,26 +659,6 @@ class loadPage(BasePage):
 	# Event Callbacks & Routing
 	# -------------------------------------------------------------------------
 
-	def on_category_change(self, event=None):
-		category = self.category_var.get()
-		available_sub_modes = self.MODE_HIERARCHY.get(category, ["CV"])
-
-		self.sub_mode_dropdown["values"] = available_sub_modes
-		self.sub_mode_var.set(available_sub_modes[0])
-
-		button_labels = {
-			"Fixed": "Sequence Config",
-			"List": "Sequence Config",
-			"Step": "Sequence Config",
-			"Battery Sim": "Battery Model"
-		}
-		self.btn_seq.config(text=button_labels.get(category, "Config"))
-
-		self.render_parameter_inputs()
-		self.sync_mode_state()
-
-		if category == "List":
-			self.open_sequence_config()
 
 	def on_sub_mode_change(self, event=None):
 		self.render_parameter_inputs()
@@ -722,27 +702,20 @@ class loadPage(BasePage):
 
 		if category == "List":
 			# If no active sequence yet, ask user to select it
-			if (
-				not self.active_sequence_path
-				or not os.path.exists(self.active_sequence_path)
-			):
-				chosen_file = filedialog.askopenfilename(
-					parent=self,
-					title="Select Active Sequence for List Mode",
-					filetypes=[
-						("CSV Files (*.csv)", "*.csv"),
-						("All Files (*.*)", "*.*"),
-					],
-				)
-				if chosen_file:
-					self.set_active_sequence_file(chosen_file)
-				return
+			category = self.category_var.get()
+			if not hasattr(self, "controller") or not self.controller:
+					return
 
-			# Route to the sequence configuration frame if available
-			try:
-				self.choose_battery_model_file()
-			except Exception:
+			if category == "Battery Sim":
+				self.controller.show_frame("Batterysimulationpage")
+			else:
 				self.controller.show_frame("canSequencePage")
+
+				# Route to the sequence configuration frame if available
+				try:
+					self.choose_battery_model_file()
+				except Exception:
+					self.controller.show_frame("canSequencePage")
 
 		elif category == "Battery Sim":
 			self.choose_battery_model_file()
@@ -1106,9 +1079,6 @@ class loadPage(BasePage):
 		self.render_parameter_inputs()
 		self.sync_mode_state()
 		self.apply_parameters()
-
-		if category == "List":
-			self.open_sequence_config()
 
 	def on_stage_change(self, event=None):
 		stage = self.system_stage_var.get()

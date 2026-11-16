@@ -1,7 +1,7 @@
 import tkinter as tk
 from tkinter import ttk
 from basePage import BasePage
-
+from warningmessagePage import WarningmessagePage
 
 class homePage(BasePage):
 	label_color = "#8056a5"
@@ -19,9 +19,10 @@ class homePage(BasePage):
 		# Mode selection variables
 		self.mode_options = [
 			"Source Mode",
-			"Load Mode",
+			"Sink Mode",
+			"Auto Sequence Mode",
 			"Battery Test",
-			"Auto Sequence Mode"
+			"Battery Simulation Mode",
 		]
 		self.selected_mode = tk.StringVar(value=self.mode_options[0])
 		self.current_mode_var = tk.StringVar(value="Source Mode (CV)")
@@ -153,7 +154,8 @@ class homePage(BasePage):
 		self.lbl_error_value.grid(row=0, column=2, sticky="w")
 
 		# Click event binding on Error Container and Labels
-		trigger_error_event = lambda event: self.print_click("Entire Error Warning Block Area")
+		
+		trigger_error_event = lambda event: self.navigate_to(WarningmessagePage)
 		error_row_container.bind("<Button-1>", trigger_error_event)
 		lbl_error_title.bind("<Button-1>", trigger_error_event)
 		self.lbl_error_value.bind("<Button-1>", trigger_error_event)
@@ -434,13 +436,21 @@ class homePage(BasePage):
 
 	def poll_value(self):
 		"""Queries shared controller dictionary / mock backend periodically."""
-		# 1. Update System Stage
-		self.system_stage_var.set(get_current_system_stage())
+		# 1. Update Error Count & Populate Listbox
+		# 1. Read live error_log from shared_data (fallback to mock only if standalone)
+		if hasattr(self, "controller") and self.controller and hasattr(self.controller, "shared_data"):
+			raw_errors = self.controller.shared_data.get("error_log", [])
+			error_log = [e.get("detail", str(e)) if isinstance(e, dict) else str(e) for e in raw_errors]
+		else:
+			error_log = get_current_error_log()
 
-		# 2. Update Error Count & Populate Listbox
-		error_log = get_current_error_log()
 		latest_error_count = len(error_log)
 		self.error_count_var.set(str(latest_error_count))
+
+		# Clear listbox if errors were cleared via top-bar Clear/Restart
+		if latest_error_count < self._displayed_error_count:
+			self.error_listbox.delete(0, tk.END)
+			self._displayed_error_count = 0
 
 		if latest_error_count > self._displayed_error_count:
 			for new_msg in error_log[self._displayed_error_count:]:
@@ -448,12 +458,20 @@ class homePage(BasePage):
 			self._displayed_error_count = latest_error_count
 			self.error_listbox.yview_moveto(1.0)
 
-		# 3. Update Active Mode
-		self.current_mode_var.set(get_mode())
-
-		# 4. Pull Shared Data from Controller (if connected)
+		# 2. Pull Shared Data from Controller (if connected)
 		if hasattr(self, "controller") and self.controller and hasattr(self.controller, "shared_data"):
 			data = self.controller.shared_data
+
+			# Sync System Stage & Active Mode Readouts
+			stage = data.get("system_stage", get_current_system_stage())
+			direction = data.get("operation_direction", "Source")
+			cat = data.get("active_category", "Fixed")
+			sub = data.get("control_sub_mode", "CV")
+
+			self.system_stage_var.set(stage)
+			self.current_mode_var.set(f"{direction} - {cat} ({sub})")
+			self.supply_op_mode_var.set(f"{direction} ({sub})")
+
 			if "can_status" in data:
 				status = data["can_status"]
 				self.can_status_var.set(status)
@@ -483,26 +501,40 @@ class homePage(BasePage):
 				self.ac_curr_var.set(f"{data['ac_current']:.2f} A")
 			if "ac_frequency" in data:
 				self.ac_freq_var.set(f"{data['ac_frequency']:.2f} Hz")
+		else:
+			self.system_stage_var.set(get_current_system_stage())
+			self.current_mode_var.set(get_mode())
 
 		# Repeat every 250ms
 		self.after(250, self.poll_value)
-
 	def on_go_click(self):
-		from sourcePage import sourcePage
+		from OperationPage import OperationPage
 		from batterytest import BatteryTestpage
-		from loadPage import loadPage
 
 		choice = self.selected_mode.get()
 		print(f"[NAV EVENT]: Navigating to -> {choice}")
 
-		page_map = {
-			"Source Mode": sourcePage,
-			"Battery Test": BatteryTestpage,
-			"Load Mode": loadPage
+		if not self.controller:
+			return
+
+		direction_map = {
+			"Source Mode": "Source",
+			"Sink Mode": "Sink",
+			"Seamless Mode": "Seamless",
 		}
 
-		if choice in page_map and self.controller:
-			self.controller.show_frame(page_map[choice])
+		if choice in direction_map:
+			target_frame = self.controller.frames.get(OperationPage)
+			if target_frame:
+				target_frame.operation_dir_var.set(direction_map[choice])
+				target_frame.on_direction_change()
+			self.controller.show_frame(OperationPage)
+
+		elif choice == "Battery Test":
+			self.controller.show_frame(BatteryTestpage)
+		elif choice == "Battery Simulation Mode":
+			from batterysimulationPage import Batterysimulationpage
+			self.controller.show_frame(Batterysimulationpage)
 
 	def print_click(self, target_name):
 		print(f"[UI EVENT]: User pressed block area linked to -> {target_name}")

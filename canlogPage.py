@@ -16,6 +16,7 @@ class CanlogPage(BasePage):
         
         self.apply_table_style()
         self.create_table()
+        self.poll_can_log()  # Start polling for CAN log updates
 
     def apply_table_style(self):
         """
@@ -73,6 +74,36 @@ class CanlogPage(BasePage):
             self.tree.insert("", tk.END, values=row)
 
         self.tree.grid(row=1, column=0, sticky="nsew", padx=10, pady=(0, 10))
+
+    def poll_can_log(self):
+        """Drains live CAN frames from controller.can_log_queue into the table."""
+        if hasattr(self, "controller") and self.controller and hasattr(self.controller, "can_log_queue"):
+            q = self.controller.can_log_queue
+            while not q.empty():
+                try:
+                    entry = q.get_nowait()
+                    # Supports either a tuple/list of 5 items or a dict
+                    if isinstance(entry, dict):
+                        row = (
+                            entry.get("timestamp", ""),
+                            entry.get("txrx", ""),
+                            entry.get("can_id", ""),
+                            entry.get("can_data", ""),
+                            entry.get("translation", ""),
+                        )
+                    else:
+                        row = tuple(entry)
+
+                    self.tree.insert("", tk.END, values=row)
+                    # Keep max 500 rows in memory & auto-scroll to latest
+                    children = self.tree.get_children()
+                    if len(children) > 500:
+                        self.tree.delete(children[0])
+                    self.tree.yview_moveto(1.0)
+                except Exception:
+                    break
+
+        self.after(150, self.poll_can_log)
 """
 if __name__ == "__main__":
     root = tk.Tk()

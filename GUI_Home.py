@@ -7,10 +7,7 @@ import time
 
 # Import all page classes
 from homePage import homePage
-from seamlessPage import seamlessPage
-from sourcePage import sourcePage
 from batterytest import BatteryTestpage
-from loadPage import loadPage
 from Canconfig import Canconfigpage
 from warningmessagePage import WarningmessagePage
 from canlogPage import CanlogPage
@@ -18,6 +15,7 @@ from batterysimulationPage import Batterysimulationpage
 from canMessageSetup import canMessageSetup
 from canSequencePage import canSequencePage
 from canMessageCommand import canMessageCommand
+from OperationPage import OperationPage
 
 from BackGroundWorker_main import ConstantTelemetryWorker
 
@@ -28,11 +26,18 @@ class bidirectional_DC_supply_app(tk.Tk):
 		self.title("Power Supply Control System")
 		self.geometry("950x570")
 
-		# --- 1. Global Shared Data Dictionary ---
+		# --- 1. Thread-Safe Communication Queues ---
+		self.command_queue = queue.Queue()   # GUI -> Worker
+		self.can_log_queue = queue.Queue()   # Worker -> GUI
+
+		# --- 2. Global Shared Data Dictionary ---
 		self.shared_data = {
 			"system_stage": "Standby",
+			"operation_direction": "Source",
 			"active_category": "Fixed",
+			"mode": "Fixed",
 			"control_sub_mode": "CV",
+			"is_running": False,
 			"set_voltage": 0.0,
 			"set_current": 0.0,
 			"set_power": 0.0,
@@ -40,6 +45,8 @@ class bidirectional_DC_supply_app(tk.Tk):
 			"battery_model_file_path": "",
 			"battery_sim_sequence_path": "",
 			"battery_model": {},
+			"can_status": "Disconnected",
+			"error_log": [],
 		}
 		self.shared_commands_df = pd.DataFrame()
 
@@ -57,9 +64,7 @@ class bidirectional_DC_supply_app(tk.Tk):
 		self.frames = {}
 		pages = (
 			homePage,
-			sourcePage,
-			loadPage,
-			seamlessPage,
+			OperationPage,
 			BatteryTestpage,
 			Batterysimulationpage,
 			WarningmessagePage,
@@ -80,7 +85,12 @@ class bidirectional_DC_supply_app(tk.Tk):
 		self.show_frame(homePage, record_history=False)
 
 		# 2. Launch Background Worker
-		self.worker = ConstantTelemetryWorker(self.shared_data)
+		# Launch Background Worker with Queues
+		self.worker = ConstantTelemetryWorker(
+			shared_data=self.shared_data,
+			data_queue=self.can_log_queue,
+		)
+		self.worker.command_queue = self.command_queue
 		self.worker.start()
 
 		# 3. Clean Shutdown Hook
@@ -136,21 +146,21 @@ class bidirectional_DC_supply_app(tk.Tk):
 		self.shared_commands_df = df
 		
 		# 1. Update Sequence Page dropdown if active
-		seq_page = self.frames.get("canSequencePage")
+		seq_page = self.frames.get(canSequencePage)
 		if seq_page and hasattr(seq_page, "update_command_dataframe"):
 			seq_page.update_command_dataframe(self.shared_commands_df)
 
 		# 2. Update any other consuming pages (e.g., batterySimulationPage, loadPage, etc.)
-		for page_name in ["batterySimulationPage", "loadPage", "sourcePage"]:
-			page = self.frames.get(page_name)
-			if page and hasattr(page, "receive_commands_dataframe"):
-				page.receive_commands_dataframe(self.shared_commands_df)
+		for page_class in (Batterysimulationpage, OperationPage):
+					page = self.frames.get(page_class)
+					if page and hasattr(page, "receive_commands_dataframe"):
+						page.receive_commands_dataframe(self.shared_commands_df)
 
 		print(self.shared_commands_df)
 
 	def get_registered_commands(self) -> pd.DataFrame:
 		"""Pulls directly from canMessageCommand on demand."""
-		cmd_page = self.frames.get("canMessageCommand")
+		cmd_page = self.frames.get(canMessageCommand)
 		if cmd_page and hasattr(cmd_page, "get_dataframe"):
 			return cmd_page.get_dataframe()
 		return self.shared_commands_df
