@@ -37,6 +37,7 @@ class bidirectional_DC_supply_app(tk.Tk):
 			"active_category": "Fixed",
 			"mode": "Fixed",
 			"control_sub_mode": "CV",
+			"Operation_page": "OperationPage",
 			"is_running": False,
 			"set_voltage": 0.0,
 			"set_current": 0.0,
@@ -130,6 +131,15 @@ class bidirectional_DC_supply_app(tk.Tk):
 		# 3. Trigger immediate sync if the page supports it (e.g., Batterysimulationpage)
 		if hasattr(target_frame, "sync_from_shared_data"):
 			target_frame.sync_from_shared_data()
+
+		# Track which operational page is currently active
+		op_page_map = {
+			OperationPage: "OperationPage",
+			BatteryTestpage: "BatteryTestpage",
+			Batterysimulationpage: "Batterysimulationpage",
+		}
+		if cont in op_page_map:
+			self.shared_data["Operation_page"] = op_page_map[cont]
 
 	def go_back(self):
 		"""Pops the most recent page from history and raises it."""

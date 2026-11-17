@@ -37,3 +37,41 @@ Utilities, Diagnostics & System Files
 BackGround Gateway
 
 *BackGroundWorker_main.py is main background worker
+
+edit the control parameter
+1.Source mode
+ - Ac act as phase locked loop sync to AC source
+ - Set only DC side V,I,W 
+ in Fixed
+ in CV only show Voltage control block (only the value) and make it scrollable, up to increase down to decrease for voltage, the curretn follow load
+ in CC only show current control block (only the value) and make it scrollable, up to increase down to decrease for current, the voltage follow load
+ in CP only show Power control block (only the value) and voltage and make it scrollable, up to increase down to decrease
+ *or make a knob which scrollable
+
+ in steps
+ in CV only show Voltage control block (max,min,step,total time) 
+ in CC only show current control block (max,min,step,total time) 
+ in CP only show current control block (,max P,min P,(max V,min V or max I,min I),step,total time)
+
+keep sequence config button
+
+
+2.Sink mode(off grid)
+ - sync DC side to DC source
+ - Set AC side V,I,PF,P,Q,S
+ in fixed
+ in CV only show Voltage control block (only the value) and make it scrollable, up to increase down to decrease
+ in CC only show current control block (only the value) and make it scrollable, up to increase down to decrease
+ in CP only show current control block (with P,Q,S) and make it scrollable, up to increase down to decrease
+
+3.Sink mode(on grid)
+ in CV only show Voltage control block (only the value) and make it scrollable, up to increase down to decrease for voltage, the curretn follow load
+ in CC only show current control block (only the value) and make it scrollable, up to increase down to decrease for current, the voltage follow load
+ in CP only show Power control block (only the value) and voltage and make it scrollable, up to increase down to decrease
+ *or make a knob which scrollable
+
+4.seamlessPage(on grid)
+DC side control
+ in CV only show Voltage control block (only the value) and make it scrollable, up to increase down to decrease
+ in CC only show current control block (only the value) and make it scrollable, up to increase down to decrease
+ in CP only show current control block (with P,Q,S) and make it scrollable, up to increase down to decrease

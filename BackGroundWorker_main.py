@@ -45,6 +45,7 @@ class ConstantTelemetryWorker:
 				current_package = {
 					"operation_direction": self.shared_data.get("operation_direction"),
 					"mode": self.shared_data.get("mode"),
+					"Operation_page": self.shared_data.get("Operation_page"),
 					"control_sub_mode": self.shared_data.get("control_sub_mode"),
 					"system_stage": self.shared_data.get("system_stage"),
 					"is_running": self.shared_data.get("is_running"),
@@ -64,6 +65,11 @@ class ConstantTelemetryWorker:
 					"limits": self.shared_data.get("limits"),
 					"battery_test_profile": self.shared_data.get("battery_test_profile"),
 					"sim_limits": self.shared_data.get("sim_limits"),
+					"target_reactive_power": self.shared_data.get("target_reactive_power"),
+					"ac_target_voltage": self.shared_data.get("ac_target_voltage"),
+					"ac_target_frequency": self.shared_data.get("ac_target_frequency"),
+					"step_total_time_sec": self.shared_data.get("step_total_time_sec"),
+					"step_v_cap": self.shared_data.get("step_v_cap"),
 				}
 				# Only keep values that are present (not None)
 				filtered_package = {
@@ -83,10 +89,15 @@ class ConstantTelemetryWorker:
 					self._last_printed_signature = current_signature
 
 				# Fast loop telemetry updates
+				"""
 				self.shared_data["dc_voltage"] = 48.05
 				self.shared_data["dc_current"] = 5.21
 				self.shared_data["dc_power"] = round(48.05 * 5.21, 2)
 				self.shared_data["can_status"] = "Connected"
+				"""
+				if filtered_package["Operation_page"] == "OperationPage":
+					self.operation_mode()
+
 				#print(f"Running {t_start:.2f} seconds, Current Telemetry: Voltage={self.shared_data['dc_voltage']}, Current={self.shared_data['dc_current']}, Power={self.shared_data['dc_power']}")
 				dt = time.time() - t_start
 				sleep_time = 0.01 - dt
@@ -96,3 +107,7 @@ class ConstantTelemetryWorker:
 			except Exception as e:
 				print(f"[WORKER ERROR]: {e}")
 				time.sleep(0.1)
+
+	def operation_mode(self):
+		# Placeholder for future operation mode logic
+		pass
