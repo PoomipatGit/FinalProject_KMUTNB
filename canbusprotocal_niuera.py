@@ -369,7 +369,8 @@ class CanbusProtocol:
             case _:
                 print(f"Unknown Register Address: 0x{register_number:04X}")
 
-    def build_set_command(self, reg_address, decimal_value, sub_mode=0): #sub mode เป็นค่า 0 หรือ 1 สำหรับบาง register ที่ต้องการกำหนดค่า high/low
+    def build_set_command(self, reg_address, decimal_value, sub_mode=0): #แปลงเลขฐาน 10 เป็นชุดคำสั่งเลขฐาน 16
+        #sub mode เป็นค่า 0 หรือ 1 สำหรับบาง register ที่ต้องการกำหนดค่า high/low
         # พื้นฐานของคำสั่ง Set: Function Code 03 และ Reserve Byte 1 (0x00)
         can_data = [0x03, 0x00]
     
