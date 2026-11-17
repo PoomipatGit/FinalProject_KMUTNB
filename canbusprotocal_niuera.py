@@ -369,7 +369,7 @@ class CanbusProtocol:
             case _:
                 print(f"Unknown Register Address: 0x{register_number:04X}")
 
-    def build_set_command(self, reg_address, decimal_value, sub_mode=0): #แปลงเลขฐาน 10 เป็นชุดคำสั่งเลขฐาน 16
+    def build_set_command(self, reg_address, decimal_value, sub_mode=0): #แปลงเลขฐาน 10 เป็นชุดคำสั่งเลขฐาน 16 #ใส่ reg adds
         #sub mode เป็นค่า 0 หรือ 1 สำหรับบาง register ที่ต้องการกำหนดค่า high/low
         # พื้นฐานของคำสั่ง Set: Function Code 03 และ Reserve Byte 1 (0x00)
         can_data = [0x03, 0x00]
@@ -383,13 +383,13 @@ class CanbusProtocol:
             # กลุ่มที่ 1: Byte 4-5 เป็นค่านึง (sub_mode/high) และ Byte 6-7 เป็นอีกค่านึง (decimal_value/low)
             # -------------------------------------------------------------------------------------------------
             case 0x0080:
-                print(f"Building Set Command: 0x0080 - Set total active power on the AC side") # sub mode 0 ,1
+                print(f"\nBuilding Set Command: 0x0080 - Set total active power on the AC side") # sub mode 0 ,1
                 val_high = int(sub_mode).to_bytes(2, byteorder='big')
                 val_low = int(decimal_value).to_bytes(2, byteorder='big', signed=True)
                 can_data.extend(list(val_high) + list(val_low))
 
             case 0x0084 | 0x0089 | 0x008A | 0x008B | 0x008C | 0x008D | 0x008E: # sub mode เป็นค่าฐาน 10 (เอาไปคูณ unit เป็นค่าจริง)
-                print(f"Building Set Command: 0x{reg_address:04X} - Set Voltage/Frequency & Time protection")
+                print(f"\nBuilding Set Command: 0x{reg_address:04X} - Set Voltage/Frequency & Time protection")
                 val_high = int(sub_mode).to_bytes(2, byteorder='big', signed=True)
                 val_low = int(decimal_value).to_bytes(2, byteorder='big', signed=True)
                 can_data.extend(list(val_high) + list(val_low))
@@ -398,12 +398,12 @@ class CanbusProtocol:
             # กลุ่มที่ 2: Byte 4-7 เป็นค่าตัวเลขต่อเนื่อง Integer เดียว (32-bit รองรับค่าบวก/ลบ)
             # -------------------------------------------------------------------------------------------------
             case 0x0017:
-                print("Building Set Command: 0x0017 - Set module's operating altitude")
+                print("\nBuilding Set Command: 0x0017 - Set module's operating altitude")
                 val_bytes = int(decimal_value).to_bytes(4, byteorder='big')
                 can_data.extend(list(val_bytes))
 
             case 0x0077 | 0x0079 | 0x0081 | 0x0082 | 0x0087 | 0x0088:
-                print(f"Building Set Command: 0x{reg_address:04X} - Set electrical parameters (DC link, Current, Power, PF)")
+                print(f"\nBuilding Set Command: 0x{reg_address:04X} - Set electrical parameters (DC link, Current, Power, PF)")
                 val_bytes = int(decimal_value).to_bytes(4, byteorder='big', signed=True)
                 can_data.extend(list(val_bytes))
 
@@ -411,33 +411,33 @@ class CanbusProtocol:
             # กลุ่มที่ 3: Fixed / Preset values (เลือกโหมดหรือสถานะตายตัวตามเงื่อนไข)
             # -------------------------------------------------------------------------------------------------
             case 0x001F:
-                print("Building Set Command: 0x001F - Set address allocation method")
+                print("\nBuilding Set Command: 0x001F - Set address allocation method")
                 # decimal_value: 0 = Automatic allocation, 1 = Dial setting
                 target_val = 0x00000000 if decimal_value == 0 else 0x00010000
                 can_data.extend(list(target_val.to_bytes(4, byteorder='big')))
 
             case 0x0024 | 0x0025 | 0x0031 | 0x0042 | 0x0044 | 0x0085 | 0x0086:
-                print(f"Building Set Command: 0x{reg_address:04X} - Set Reset / Protection configurations")
+                print(f"\nBuilding Set Command: 0x{reg_address:04X} - Set Reset / Protection configurations")
                 # decimal_value: 0 = Disable, 1 = Reset / Allow
                 target_val = 0x00000000 if decimal_value == 0 else 0x00010000
                 can_data.extend(list(target_val.to_bytes(4, byteorder='big')))
 
             case 0x002F:
-                print("Building Set Command: 0x002F - Set module working mode")
+                print("\nBuilding Set Command: 0x002F - Set module working mode")
                 # decimal_value: 0 = Grid-connected, 1 = Off-grid, 2 = Rectification
                 modes = {0: 0x00000000, 1: 0x00010000, 2: 0x00020000}
                 target_val = modes.get(decimal_value, 0x00000000)
                 can_data.extend(list(target_val.to_bytes(4, byteorder='big')))
 
             case 0x0030:
-                print("Building Set Command: 0x0030 - Set power on or off")
+                print("\nBuilding Set Command: 0x0030 - Set power on or off")
                 # decimal_value: 0 = Startup, 1 = Shutdown
                 states = {0: 0x00000000, 1: 0x00010000}
                 target_val = states.get(decimal_value, 0x00000000)
                 can_data.extend(list(target_val.to_bytes(4, byteorder='big')))
 
             case 0x0083:
-                print("Building Set Command: 0x0083 - Set reactive power type on AC side")
+                print("\nBuilding Set Command: 0x0083 - Set reactive power type on AC side")
                 # decimal_value: 0 = Do not set, 1 = Use PF, 2 = Use Reactive power
                 types_map = {0: 0x00A00000, 1: 0x00A10000, 2: 0x00A20000}
                 target_val = types_map.get(decimal_value, 0x00A00000)
@@ -447,7 +447,7 @@ class CanbusProtocol:
             # กลุ่มที่ 4: อื่นๆ (โครงสร้างบิตพิเศษ)
             # -------------------------------------------------------------------------------------------------
             case 0x001E:
-                print("Building Set Command: 0x001E - Set Group Number")
+                print("\nBuilding Set Command: 0x001E - Set Group Number")
                 group_val = int(decimal_value) & 0x07  # ใช้ 3 บิตล่างของ Byte 7
                 can_data.extend([0x00, 0x00, 0x00, group_val])
 
@@ -458,8 +458,18 @@ class CanbusProtocol:
             
         # แปลงผลลัพธ์เป็น Hex string สำหรับตรวจสอบหรือส่งต่อ
         hex_list = [f"{b:02X}" for b in can_data]
-        print(f"Generated TX Data: {hex_list}\n")
+        print(f"Generated TX Data: {hex_list}")
         return can_data
+    
+    def build_data_fromvalue_fromgui(self, data, decimal_value, sub_mode=0):   #ใส่ data , value
+        can_data = data.replace("xx", "00")
+        byte_list = can_data.split()
+        if len(byte_list) >= 4 and byte_list[0] == "03" and byte_list[1] == "00":
+            reg_address = int(byte_list[2] + byte_list[3], 16)
+            new_can_data = self.build_set_command(reg_address, decimal_value, sub_mode)
+            return " ".join([f"{b:02X}" for b in new_can_data])
+        else:
+            return can_data
         
     def close(self):
         self.bus.shutdown()

@@ -6,11 +6,13 @@ import threading
 import time
 import pandas as pd  
 import re
+import queue
 from canbusprotocal_niuera import CanbusProtocol
 
 # ไฟล์ csv 1 ไฟล์คือการส่งข้อมูลที่ต้องการเป็น set 1 set โดยจะต้องกำหนดเวลาเท่ากันทั้งไฟล์ เช่นจะ set V ต้อง 1.set v 2. ปล่อย v 3. อ่าน v รวม 3 ขั้นตอนใน 1 ไฟล์ เวลาค่าเดียวกัน
 class CSVLogger:
     def __init__(self, file_path=None):
+        self.result_queue = queue.Queue()
         self.filepath = file_path
         self.canprotocal = CanbusProtocol()
     def check_filepath(self, file_path):
@@ -268,13 +270,27 @@ class CSVLogger:
                                 f"Error building set command for row {index}: {e}"
                             )
                             continue
-                        
+                        # ก่อนส่ง CAN
+                        self.result_queue.put({
+                            "idx": index,
+                            "name": name,
+                            "status": "SENDING...",
+                            "response": None
+                        })
                         # ส่งข้อมูล CAN และรอรับ Response
                         response = self.canprotocal.read_once_fromgui(
                             can_id=identifier,
                             payload=can_data,
                             timeout=timeout
                         )
+                        self.result_queue.put({
+                            "idx": index,
+                            "name": row["Name"],
+                            "identifier": identifier,
+                            "can_data": can_data,
+                            "response": response,
+                            "status": "RESPONSE" if response is not None else "TIMEOUT"
+                        })
                         if response is not None:
                             res_id_hex, res_data_hex = response
                             print("Success!")
@@ -282,7 +298,7 @@ class CSVLogger:
                             res_id_hex = "-"
                             res_data_hex = "-"
                             print("Timeout!")
-                            
+
                         self.loop_log.append({
                             "Time": round(time.time() - start_time, 3),
                             "Name": name,
@@ -299,6 +315,7 @@ class CSVLogger:
                         })
                         time.sleep(interval)
                     loop_count += 1
+                    print(f"loop count: {loop_count}")
             finally:
                 try:
                     print("\n=== Sending shutdown command... ===")

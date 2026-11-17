@@ -1,24 +1,30 @@
+import queue
+import threading
 import tkinter as tk
 from tkinter import ttk
 import time
 import pandas as pd
 from basePage import BasePage
 import os
+from canbusprotocal_niuera import CanbusProtocol
+from can_csv import CSVLogger
 
 class canSequencePage(BasePage):
     theme_color = "#135279"
     row_bg = "#DCE2E8"
-
     # Standard columns matching the DataFrame and Treeview architecture
     SEQ_COLUMNS = ["name", "txrx", "identifier", "can_data", "value", "comment", "action", "result"]
 
     def __init__(self, parent, controller=None):
+        self.csv_logger = CSVLogger()
+        self.canprotocal = self.csv_logger.canprotocal
         super().__init__(parent, controller)
 
         self.is_extended = False
         self._is_running_sequence = False
         self._last_loaded_csv_path = None
-
+        self._single_can_busy = False
+        
         # 1. Single Source of Truth (SSOT): Empty Sequence DataFrame
         self.df_sequence = pd.DataFrame(columns=self.SEQ_COLUMNS)
 
@@ -30,6 +36,8 @@ class canSequencePage(BasePage):
         self.setup_ui()
         self.setup_debug_console()
 
+        # เริ่มตรวจ Queue ทุก 100 ms
+        self.after(100, self.check_can_queue)
         # 4. Pull initial registered commands and render
         self.poll_commands_from_controller()
         self.render_dataframe_to_tree()
@@ -324,6 +332,9 @@ class canSequencePage(BasePage):
     # -------------------------------------------------------------------------
 
     def add_step_to_dataframe(self):
+        if self._is_running_sequence or self._single_can_busy:
+            self.log_debug("[WARN]: CAN is running")
+            return
         # Refresh registry before lookup
         self.poll_commands_from_controller()
 
@@ -353,6 +364,9 @@ class canSequencePage(BasePage):
         self.log_debug(f"[DF]: Added sequence step '{selected_name}' (Total steps: {len(self.df_sequence)})")
 
     def remove_step_from_dataframe(self):
+        if self._is_running_sequence or self._single_can_busy:
+            self.log_debug("[WARN]: CAN is running")
+            return
         selected_items = self.tree.selection()
         if not selected_items:
             self.log_debug("[WARN]: Select a step in the table to remove.")
@@ -364,6 +378,9 @@ class canSequencePage(BasePage):
         self.log_debug(f"[DF]: Removed sequence step(s) {indices_to_drop}")
 
     def on_double_click_edit(self, event):
+        if self._is_running_sequence or self._single_can_busy:
+            self.log_debug("[WARN]: CAN is running")
+            return
         """In-place cell editing updating both DataFrame and Treeview."""
         if self.tree.identify_region(event.x, event.y) != "cell":
             return
@@ -407,18 +424,104 @@ class canSequencePage(BasePage):
     # -------------------------------------------------------------------------
     # Execution Logic directly from DataFrame
     # -------------------------------------------------------------------------
-
+    def send_single_can_worker(self, idx, row_data):
+        try:
+            can_data = str(row_data["can_data"]).replace("XX", "xx")
+            value = row_data["value"]
+            # แปลง Value เป็นตัวเลขเฉพาะ Set Command
+            if can_data.strip().upper().startswith("03 "):
+                value = float(value)
+            updated_data = self.csv_logger.canprotocal.build_data_fromvalue_fromgui(
+                can_data,
+                value
+            )
+            # ส่ง CAN จริงและรอ Response
+            response = self.csv_logger.canprotocal.read_once_fromgui(
+                can_id=row_data["identifier"],
+                payload=updated_data,
+                timeout=0.1
+            )
+            status = "RESPONSE" if response is not None else "TIMEOUT"
+        except Exception as e:
+            response = str(e)
+            status = "ERROR"
+        # ส่งผลกลับ GUI
+        self.csv_logger.result_queue.put({
+            "type": "SINGLE",
+            "idx": idx,
+            "name": row_data["name"],
+            "status": status,
+            "response": response
+        })
+        
     def on_cell_click(self, event):
         if self.tree.identify_region(event.x, event.y) == "cell" and self.tree.identify_column(event.x) == "#7":
             item_id = self.tree.identify_row(event.y)
             if item_id.isdigit():
-                idx = int(item_id)
-                row_data = self.df_sequence.iloc[idx]
-                self.log_debug(f"[EXEC SINGLE]: Sending ID={row_data['identifier']} DATA={row_data['can_data']}")
-                self.df_sequence.at[idx, "result"] = "OK"
-                self.tree.set(item_id, column="Result", value="OK")
+                if self._is_running_sequence or self._single_can_busy:
+                    self.log_debug("[WARN]: CAN is busy")
+                    return
 
+                idx = int(item_id)
+                row_data = self.df_sequence.iloc[idx].copy()
+
+                self._single_can_busy = True
+
+                # เปลี่ยนสถานะก่อนส่ง
+                self.df_sequence.at[idx, "result"] = "SENDING..."
+                self.tree.set(item_id, column="Result", value="SENDING...")
+
+                # เริ่ม Background Thread
+                threading.Thread(
+                    target=self.send_single_can_worker,
+                    args=(idx, row_data),
+                    daemon=True
+                ).start()
+                
+    def check_can_queue(self):
+        try:
+            while True:
+                data = self.csv_logger.result_queue.get_nowait()
+                idx = data["idx"]
+                status = data["status"]
+                if idx in self.df_sequence.index:
+                    self.df_sequence.at[idx, "result"] = status
+                    if self.tree.exists(str(idx)):
+                        self.tree.set(str(idx), column="Result", value=status)
+                response = data.get("response")
+                if response is not None:
+                    res_id, res_data = response
+                else:
+                    res_id, res_data = "-", "-"
+                self.log_debug(
+                    f"[CAN] {data.get('name', '-')} | {status} | ID : {res_id} , Data : {res_data}"
+                )
+
+                # ถ้าเป็น Single RUN ให้ปลดสถานะ Busy
+                if data.get("type") == "SINGLE":
+                    self._single_can_busy = False
+        except queue.Empty:
+            pass
+        self.after(100, self.check_can_queue)
+        
+    def check_sequence_finished(self):
+        if self.can_thread.is_alive():
+            self.after(100, self.check_sequence_finished)
+            return
+
+        self._is_running_sequence = False
+
+        self.btn_run_seq.config(
+            state="normal",
+            text="▶ RUN DATAFRAME SEQUENCE"
+        )
+
+        self.log_debug("--- [DATAFRAME SEQUENCE FINISHED] ---")
+        
     def start_dataframe_sequence(self):
+        if self._single_can_busy:
+            self.log_debug("[WARN]: Single CAN command is running")
+            return
         if self._is_running_sequence or self.df_sequence.empty:
             if self.df_sequence.empty:
                 self.log_debug("[WARN]: No sequence steps loaded to run.")
@@ -432,26 +535,25 @@ class canSequencePage(BasePage):
             self.df_sequence.at[idx, "result"] = "PENDING"
             self.tree.set(str(idx), column="Result", value="PENDING")
 
-        def run_step(idx):
-            if idx >= len(self.df_sequence):
-                self.log_debug("--- [DATAFRAME SEQUENCE FINISHED] ---")
-                self.btn_run_seq.config(state="normal", text="▶ RUN DATAFRAME SEQUENCE")
-                self._is_running_sequence = False
-                return
+        df = self.df_sequence.rename(columns={
+            "name": "Name",
+            "txrx": "TxRx",
+            "identifier": "Identifier",
+            "can_data": "CAN Data",
+            "value": "Value",
+            "comment": "Comment",
+            "action": "Action",
+            "result": "Result"
+        }).copy()
 
-            row = self.df_sequence.iloc[idx]
-            self.df_sequence.at[idx, "result"] = "SENDING..."
-            self.tree.set(str(idx), column="Result", value="SENDING...")
-            self.log_debug(f"[STEP {idx+1}/{len(self.df_sequence)}]: {row['name']} -> ID: {row['identifier']} Val: {row['value']}")
+        df = self.csv_logger.split_timeandvalue(df)
 
-            def step_done():
-                self.df_sequence.at[idx, "result"] = "OK"
-                self.tree.set(str(idx), column="Result", value="OK")
-                self.after(250, lambda: run_step(idx + 1))
+        self.can_thread = self.csv_logger.loop_read_commands_from_df(
+            df, interval=0.1, timeout=0.1
+        )
 
-            self.after(200, step_done)
+        self.after(100, self.check_sequence_finished)
 
-        run_step(0)
 
     # -------------------------------------------------------------------------
     # BasePage File Hooks (DataFrame Native)
