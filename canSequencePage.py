@@ -3,7 +3,7 @@ from tkinter import ttk
 import time
 import pandas as pd
 from basePage import BasePage
-
+import os
 
 class canSequencePage(BasePage):
     theme_color = "#135279"
@@ -17,6 +17,7 @@ class canSequencePage(BasePage):
 
         self.is_extended = False
         self._is_running_sequence = False
+        self._last_loaded_csv_path = None
 
         # 1. Single Source of Truth (SSOT): Empty Sequence DataFrame
         self.df_sequence = pd.DataFrame(columns=self.SEQ_COLUMNS)
@@ -38,9 +39,10 @@ class canSequencePage(BasePage):
     # -------------------------------------------------------------------------
 
     def tkraise(self, *args, **kwargs):
-        """Auto-polls latest command list whenever this page is displayed."""
+        """Auto-polls latest command list and active sequence CSV when displayed."""
         super().tkraise(*args, **kwargs)
         self.poll_commands_from_controller()
+        self.poll_active_sequence_file()
 
     def poll_commands_from_controller(self):
         """Attempts to retrieve the active DataFrame from canMessageCommand or controller."""
@@ -66,6 +68,21 @@ class canSequencePage(BasePage):
 
         if latest_df is not None and not latest_df.empty:
             self.update_command_dataframe(latest_df)
+
+    def poll_active_sequence_file(self):
+        """Automatically loads the active sequence CSV selected on Source/Load/Seamless."""
+        target_path = None
+        if hasattr(self, "controller") and self.controller is not None:
+            sd = getattr(self.controller, "shared_data", {})
+            target_path = sd.get("active_sequence_csv") or sd.get("active_sequence_path")
+
+        if target_path and os.path.exists(target_path) and target_path != self._last_loaded_csv_path:
+            try:
+                df = pd.read_csv(target_path)
+                self.load_dataframe(df)
+                self._last_loaded_csv_path = target_path
+            except Exception as e:
+                self.log_debug(f"[ERROR]: Failed to auto-load sequence CSV: {e}")
 
     def update_command_dataframe(self, new_df: pd.DataFrame):
         """Refreshes the available options in the dropdown using the passed DataFrame."""
@@ -446,6 +463,26 @@ class canSequencePage(BasePage):
 
     def load_dataframe(self, new_df: pd.DataFrame):
         """Called by BasePage to load an external sequence CSV into memory."""
-        self.df_sequence = new_df.reset_index(drop=True)
+        if new_df is None or new_df.empty:
+            self.log_debug("[WARN]: Sequence CSV is empty.")
+            return
+
+        # Normalize headers (e.g., "CAN Data" -> "can_data")
+        normalized_df = new_df.copy()
+        normalized_df.columns = [
+            str(c).strip().lower().replace(" ", "_") for c in normalized_df.columns
+        ]
+
+        # Fill any missing expected columns
+        for col in self.SEQ_COLUMNS:
+            if col not in normalized_df.columns:
+                if col == "action":
+                    normalized_df[col] = "RUN"
+                elif col in ("result", "value"):
+                    normalized_df[col] = "--"
+                else:
+                    normalized_df[col] = ""
+
+        self.df_sequence = normalized_df[self.SEQ_COLUMNS].reset_index(drop=True)
         self.render_dataframe_to_tree()
         self.log_debug(f"[FILE]: Loaded sequence from CSV ({len(self.df_sequence)} steps)")

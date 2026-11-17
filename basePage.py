@@ -5,6 +5,8 @@ import json
 import pandas as pd
 
 
+
+
 class BasePage(tk.Frame):
 	button_color = "#573172"
 	label_color = "#8056a5"
@@ -30,21 +32,18 @@ class BasePage(tk.Frame):
 		from batterytest import BatteryTestpage
 		from canMessageSetup import canMessageSetup
 		from homePage import homePage
-		from loadPage import loadPage
-		from sourcePage import sourcePage
 		from warningmessagePage import WarningmessagePage
 		from canlogPage import CanlogPage
 		from Canconfig import Canconfigpage
 		from batterysimulationPage import Batterysimulationpage
 		from canMessageCommand import canMessageCommand
 		from canSequencePage import canSequencePage
-		from seamlessPage import seamlessPage
+		from OperationPage import OperationPage
+
 
 		return {
 			"Home": homePage,
-			"Source": sourcePage,
-			"Load": loadPage,
-			"Auto": seamlessPage,
+			"Operation": OperationPage,
 			"Battery Test": BatteryTestpage,
 			"Battery Simulation": Batterysimulationpage,
 			"Warning Messages": WarningmessagePage,
@@ -58,9 +57,7 @@ class BasePage(tk.Frame):
 		cls_name = self.__class__.__name__
 		name_lookup = {
 			"homePage": "HOME",
-			"sourcePage": "SOURCE",
-			"loadPage": "LOAD",
-			"seamlessPage": "AUTO",
+			"OperationPage": "OPERATION",
 			"BatteryTestpage": "BATTERY TEST",
 			"Batterysimulationpage": "BATTERY SIMULATION",
 			"canMessageCommand": "SAVED COMMAND",
@@ -150,9 +147,9 @@ class BasePage(tk.Frame):
 		right_box.grid(row=0, column=2, sticky="e", padx=4, pady=2)
 
 		for text, cmd in [
-			("Restart", lambda: print("Restart")),
-			("Stop", lambda: print("Stop")),
-			("Clear", lambda: print("Clear")),
+			("Restart", self.handle_restart),
+			("Stop", self.handle_stop),
+			("Clear", self.handle_clear),
 		]:
 			tk.Button(
 				right_box, text=text, bg=self.button_color, fg="#FFFFFF",
@@ -182,9 +179,34 @@ class BasePage(tk.Frame):
 			# General Pages (Home, Source, Load, Battery Test, etc.)
 			self.file_menu.add_command(label="Open Config...", command=self.open_config_file)
 			self.file_menu.add_command(label="Save Config...", command=self.save_config_file)
+	# -------------------------------------------------------------------------
+	# Start/Stop/Clear Handlers 
+	# -------------------------------------------------------------------------
+	def handle_stop(self):
+		print("[EMERGENCY STOP]: Forcing Standby & Output OFF")
+		if hasattr(self, "controller") and self.controller:
+			if hasattr(self.controller, "shared_data"):
+				self.controller.shared_data["system_stage"] = "Standby"
+				self.controller.shared_data["is_running"] = False
+			if hasattr(self.controller, "command_queue"):
+				self.controller.command_queue.put({"action": "EMERGENCY_STOP"})
+
+	def handle_restart(self):
+		print("[SYSTEM RESTART]: Sending reset command")
+		if hasattr(self, "controller") and self.controller:
+			if hasattr(self.controller, "shared_data"):
+				self.controller.shared_data["error_log"] = []
+				self.controller.shared_data["system_stage"] = "Standby"
+			if hasattr(self.controller, "command_queue"):
+				self.controller.command_queue.put({"action": "RESTART"})
+
+	def handle_clear(self):
+		print("[UI CLEAR]: Clearing active warnings/logs")
+		if hasattr(self, "controller") and self.controller and hasattr(self.controller, "shared_data"):
+			self.controller.shared_data["error_log"] = []
 
 	# -------------------------------------------------------------------------
-	# 1. Config Actions (General Pages)
+	# Config Actions (General Pages)
 	# -------------------------------------------------------------------------
 
 	def open_config_file(self):
@@ -294,31 +316,6 @@ class BasePage(tk.Frame):
 	# 3. Sequence Actions (canSequencePage)
 	# -------------------------------------------------------------------------
 
-	def open_sequence_file(self):
-		"""Loads CSV sequence into Treeview table."""
-		file_path = filedialog.askopenfilename(
-			parent=self,
-			title="Open Sequence Table",
-			filetypes=[("CSV Files (*.csv)", "*.csv"), ("All Files (*.*)", "*.*")]
-		)
-		if not file_path:
-			return
-
-		if hasattr(self, "load_sequence_csv"):
-			self.load_sequence_csv(file_path)
-		elif hasattr(self, "tree"):
-			try:
-				with open(file_path, mode="r", encoding="utf-8") as f:
-					reader = csv.reader(f)
-					_ = next(reader, None)  # Skip header
-					self.tree.delete(*self.tree.get_children())
-					for row in reader:
-						if row:
-							self.tree.insert("", tk.END, values=row)
-				messagebox.showinfo("Loaded", f"Sequence loaded from:\n{file_path}")
-			except Exception as e:
-				messagebox.showerror("Error", f"Failed to load sequence: {e}")
-
 	def save_sequence_file(self):
 		"""Exports active Treeview sequence table to CSV."""
 		file_path = filedialog.asksaveasfilename(
@@ -371,23 +368,33 @@ class BasePage(tk.Frame):
 			self.navigate_to(home_class)
 
 	def open_sequence_file(self):
+		"""Loads CSV sequence into Treeview table and syncs active path."""
 		file_path = filedialog.askopenfilename(
 			parent=self,
 			title="Open Sequence Table",
-			filetypes=[
-				("CSV Files (*.csv)", "*.csv"),
-				("All Files (*.*)", "*.*"),
-			],
+			filetypes=[("CSV Files (*.csv)", "*.csv"), ("All Files (*.*)", "*.*")]
 		)
 		if not file_path:
 			return
 
-		# Save globally to controller so List mode on sourcePage picks it up
-		if hasattr(self, "controller") and self.controller:
-			self.controller.shared_data["active_sequence_path"] = file_path
+		try:
+			# 1. Load into active page's DataFrame if supported (canSequencePage)
+			if hasattr(self, "load_dataframe"):
+				df = pd.read_csv(file_path)
+				self.load_dataframe(df)
+				messagebox.showinfo("Loaded", f"Sequence loaded from:\n{file_path}")
+			elif hasattr(self, "load_sequence_csv"):
+				self.load_sequence_csv(file_path)
 
-		# Update sourcePage directly if it's already instantiated
-		if hasattr(self, "controller") and hasattr(self.controller, "frames"):
-			for frame in self.controller.frames.values():
-				if hasattr(frame, "set_active_sequence_file"):
-					frame.set_active_sequence_file(file_path)
+			# 2. Sync path globally so worker and other pages see the same file
+			if hasattr(self, "controller") and self.controller:
+				self.controller.shared_data["active_sequence_path"] = file_path
+				self.controller.shared_data["active_sequence_csv"] = file_path
+
+				if hasattr(self.controller, "frames"):
+					for frame in self.controller.frames.values():
+						if hasattr(frame, "set_active_sequence_file"):
+							frame.set_active_sequence_file(file_path)
+
+		except Exception as e:
+			messagebox.showerror("Error", f"Failed to load sequence: {e}")

@@ -77,20 +77,28 @@ class BatteryTestpage(BasePage):
 	# Unified Live Update Loop
 	# -------------------------------------------------------------------------
 	def update_loop(self):
-		# 1. Update text variables for capacity & VAW
-		self.capacity_text.set(f"{self.ah_current} Ah\n {self.wh_current} Wh")
-		self.vaw_text.set(f"{self.volt} V\n{self.amp} A\n {self.watt} W")
+		# 1. Pull live telemetry from controller if available
+		if hasattr(self, "controller") and self.controller and hasattr(self.controller, "shared_data"):
+			data = self.controller.shared_data
+			self.volt = data.get("dc_voltage", self.volt)
+			self.amp = data.get("dc_current", self.amp)
+			self.watt = data.get("dc_power", self.watt)
+			self.ah_current = data.get("battery_ah", self.ah_current)
+			self.wh_current = data.get("battery_wh", self.wh_current)
 
-		# 2. Timer counter logic
+		# 2. Update text variables for capacity & VAW
+		self.capacity_text.set(f"{self.ah_current:.2f} Ah\n {self.wh_current:.2f} Wh")
+		self.vaw_text.set(f"{self.volt:.2f} V\n{self.amp:.2f} A\n {self.watt:.2f} W")
+
+		# 3. Timer counter logic
 		if self.running_time:
 			self.run_sec += 0.1
 			td = timedelta(seconds=self.run_sec)
 			run_time_str = str(td)[:-5] if len(str(td)) > 5 else str(td)
 			self.run_time_sec.set(f"{run_time_str}")
 
-		# 3. Schedule ONLY ONE next cycle in 100ms
+		# 4. Schedule ONLY ONE next cycle in 100ms
 		self.after(100, self.update_loop)
-
 	# -------------------------------------------------------------------------
 	# UI Component Construction Methods
 	# -------------------------------------------------------------------------
@@ -783,22 +791,57 @@ class BatteryTestpage(BasePage):
 		)
 		self.run_button.place(x=855, y=200, anchor="center")
 
+	def _safe_float(self, var, default=0.0):
+		try:
+			return float(var.get())
+		except (ValueError, TypeError):
+			return default
+
+	def get_config_data(self) -> dict:
+		"""Packages all Battery Test setpoints, limits, and cut-offs."""
+		raw_mode = self.selected_mode.get()
+		test_dir = "Discharge" if "Discharge" in raw_mode else "Charge"
+		return {
+			"test_direction": test_dir,
+			"charge_voltage": self._safe_float(self.set_chrg_volt),
+			"charge_current": self._safe_float(self.set_chrg_amp),
+			"cutoff_capacity": self._safe_float(self.set_cutoff_cap),
+			"cutoff_time": self._safe_float(self.set_cutoff_time),
+			"cutoff_voltage": self._safe_float(self.set_cutoff_voltage),
+			"cutoff_current": self._safe_float(self.set_cutoff_current),
+			"cutoff_energy": self._safe_float(self.set_cutoff_energy),
+			"limit_discharge_amp": self._safe_float(self.discharge_amp),
+			"limit_discharge_watt": self._safe_float(self.discharge_watt),
+			"limit_charge_amp": self._safe_float(self.charge_amp),
+			"limit_charge_watt": self._safe_float(self.charge_watt),
+			"limit_setting_volt": self._safe_float(self.set_volt),
+		}
+
+	def sync_to_controller(self, is_running: bool):
+		if hasattr(self, "controller") and self.controller and hasattr(self.controller, "shared_data"):
+			cfg = self.get_config_data()
+			payload = {
+				"mode": "Battery Test",
+				"active_category": "Battery Test",
+				"operation_direction": "Sink" if cfg["test_direction"] == "Discharge" else "Source",
+				"system_stage": "Output" if is_running else "Standby",
+				"is_running": is_running,
+				"target_voltage": cfg["charge_voltage"],
+				"target_current": cfg["charge_current"],
+				"battery_test_profile": cfg,
+			}
+			self.controller.shared_data.update(payload)
+			print(f"[BATTERY TEST DISPATCH]: {payload}")
+
 	def run_stop_setup(self):
 		if self.run_button.cget("text") == "RUN":
-			print("Run!")
-			self.run_button.config(
-				text="STOP", 
-				bg="#FF4D4D",              
-				activebackground="#CC0000"
-			)
+			self.run_button.config(text="STOP", bg="#FF4D4D", activebackground="#CC0000")
 			self.running_time = True
+			self.sync_to_controller(is_running=True)
 		else:
-			self.run_button.config(
-				text="RUN",
-				bg=self.bgcolor2,              
-				activebackground="#17033b"
-			)
+			self.run_button.config(text="RUN", bg=self.bgcolor2, activebackground="#17033b")
 			self.running_time = False
+			self.sync_to_controller(is_running=False)
 
 	def button_save(self):
 		self.save_button = tk.Button(
@@ -819,5 +862,26 @@ class BatteryTestpage(BasePage):
 		)
 		self.save_button.place(x=855, y=130, anchor="center")
 
+	def load_config_data(self, data: dict):
+		"""Restores Battery Test fields from a loaded JSON dictionary."""
+		if "test_direction" in data:
+			self.selected_mode.set(f"Mode: {data['test_direction']}")
+		self.set_chrg_volt.set(str(data.get("charge_voltage", "")))
+		self.set_chrg_amp.set(str(data.get("charge_current", "")))
+		self.set_cutoff_cap.set(str(data.get("cutoff_capacity", "")))
+		self.set_cutoff_time.set(str(data.get("cutoff_time", "")))
+		self.set_cutoff_voltage.set(str(data.get("cutoff_voltage", "")))
+		self.set_cutoff_current.set(str(data.get("cutoff_current", "")))
+		self.set_cutoff_energy.set(str(data.get("cutoff_energy", "")))
+		self.discharge_amp.set(str(data.get("limit_discharge_amp", "")))
+		self.discharge_watt.set(str(data.get("limit_discharge_watt", "")))
+		self.charge_amp.set(str(data.get("limit_charge_amp", "")))
+		self.charge_watt.set(str(data.get("limit_charge_watt", "")))
+		self.set_volt.set(str(data.get("limit_setting_volt", "")))
+		self.sync_to_controller(is_running=self.running_time)
+
 	def save_setup(self):
-		print("Save!")
+		import Filemanager
+		cfg = self.get_config_data()
+		self.sync_to_controller(is_running=self.running_time)
+		Filemanager.save_json(Filemanager.get_required_path("battery_test_profile.json"), cfg)

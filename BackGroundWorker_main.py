@@ -30,22 +30,28 @@ class ConstantTelemetryWorker:
 				t_start = time.time()
 
 				# Package keys from GUI
+				# 0. Drain any immediate one-off GUI commands (Stop, Restart, Ping, etc.)
+				cmd_q = getattr(self, "command_queue", None)
+				if cmd_q is not None:
+					while not cmd_q.empty():
+						try:
+							cmd = cmd_q.get_nowait()
+							print(f"\n[WORKER RECEIVED COMMAND]: {json.dumps(cmd)}")
+							cmd_q.task_done()
+						except queue.Empty:
+							break
+
+				# 1. Package keys from GUI
 				current_package = {
+					"operation_direction": self.shared_data.get("operation_direction"),
 					"mode": self.shared_data.get("mode"),
-					"control_sub_mode": self.shared_data.get(
-						"control_sub_mode"
-					),
+					"control_sub_mode": self.shared_data.get("control_sub_mode"),
 					"system_stage": self.shared_data.get("system_stage"),
 					"is_running": self.shared_data.get("is_running"),
-					"active_sequence_csv": self.shared_data.get(
-						"active_sequence_csv"
-					),
-					"battery_model_file_path": self.shared_data.get(
-						"battery_model_file_path"
-					),
-					"sequence_file_exists": self.shared_data.get(
-						"sequence_file_exists"
-					),
+					"active_sequence_csv": self.shared_data.get("active_sequence_csv"),
+					"sequence_file_exists": self.shared_data.get("sequence_file_exists"),
+					"battery_model_file_path": self.shared_data.get("battery_model_file_path"),
+					"battery_model_exists": self.shared_data.get("battery_model_exists"),
 					"target_voltage": self.shared_data.get("target_voltage"),
 					"target_current": self.shared_data.get("target_current"),
 					"target_power": self.shared_data.get("target_power"),
@@ -55,8 +61,10 @@ class ConstantTelemetryWorker:
 					"step_time_sec": self.shared_data.get("step_time_sec"),
 					"sim_voltage": self.shared_data.get("sim_voltage"),
 					"sim_current": self.shared_data.get("sim_current"),
+					"limits": self.shared_data.get("limits"),
+					"battery_test_profile": self.shared_data.get("battery_test_profile"),
+					"sim_limits": self.shared_data.get("sim_limits"),
 				}
-
 				# Only keep values that are present (not None)
 				filtered_package = {
 					k: v for k, v in current_package.items() if v is not None
@@ -79,7 +87,7 @@ class ConstantTelemetryWorker:
 				self.shared_data["dc_current"] = 5.21
 				self.shared_data["dc_power"] = round(48.05 * 5.21, 2)
 				self.shared_data["can_status"] = "Connected"
-				print(f"Running {t_start:.2f} seconds, Current Telemetry: Voltage={self.shared_data['dc_voltage']}, Current={self.shared_data['dc_current']}, Power={self.shared_data['dc_power']}")
+				#print(f"Running {t_start:.2f} seconds, Current Telemetry: Voltage={self.shared_data['dc_voltage']}, Current={self.shared_data['dc_current']}, Power={self.shared_data['dc_power']}")
 				dt = time.time() - t_start
 				sleep_time = 0.01 - dt
 				time.sleep(sleep_time if sleep_time > 0 else 0.001)

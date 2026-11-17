@@ -5,7 +5,8 @@ from tkinter import filedialog
 from basePage import BasePage
 import Filemanager
 
-class seamlessPage(BasePage):
+
+class loadPage(BasePage):
 	label_color = "#145374"      # Dark teal/blue
 	button_color = "#00334e"
 	accent_color = "#5588a3"
@@ -20,7 +21,6 @@ class seamlessPage(BasePage):
 	AUTO_SEQUENCE_FILES = {
 		"Fixed": "Fix_sequence.csv",
 		"Step": "Step_sequence.csv",
-		"Battery Sim": "BatterySim_sequence.csv"
 	}
 
 	def __init__(self, parent, controller=None):
@@ -73,7 +73,7 @@ class seamlessPage(BasePage):
 		self.y_pos_var = tk.StringVar(value="0.0")
 		self.is_plot_frozen = tk.BooleanVar(value=False)
 
-		self.limit_file = Filemanager.get_required_path("limit_auto.json")
+		self.limit_file = Filemanager.get_required_path("limit_sink.json")
 		self.load_limits()
 		self.ch1_active = tk.BooleanVar(value=True)   
 		self.ch2_active = tk.BooleanVar(value=True)   
@@ -146,7 +146,7 @@ class seamlessPage(BasePage):
 		self.stage_container.grid_columnconfigure(3, weight=1)
 
 		tk.Label(
-			self.stage_container, text="System Stage (auto): ",
+			self.stage_container, text="System Stage (src): ",
 			font=("Helvetica", 10, "bold"), bg=self.label_color, fg="#FFFFFF"
 		).grid(row=0, column=1, sticky="e", padx=(0, 5))
 
@@ -659,26 +659,6 @@ class seamlessPage(BasePage):
 	# Event Callbacks & Routing
 	# -------------------------------------------------------------------------
 
-	def on_category_change(self, event=None):
-		category = self.category_var.get()
-		available_sub_modes = self.MODE_HIERARCHY.get(category, ["CV"])
-
-		self.sub_mode_dropdown["values"] = available_sub_modes
-		self.sub_mode_var.set(available_sub_modes[0])
-
-		button_labels = {
-			"Fixed": "Sequence Config",
-			"List": "Sequence Config",
-			"Step": "Sequence Config",
-			"Battery Sim": "Battery Model"
-		}
-		self.btn_seq.config(text=button_labels.get(category, "Config"))
-
-		self.render_parameter_inputs()
-		self.sync_mode_state()
-
-		if category == "List":
-			self.open_sequence_config()
 
 	def on_sub_mode_change(self, event=None):
 		self.render_parameter_inputs()
@@ -722,48 +702,54 @@ class seamlessPage(BasePage):
 
 		if category == "List":
 			# If no active sequence yet, ask user to select it
-			if (
-				not self.active_sequence_path
-				or not os.path.exists(self.active_sequence_path)
-			):
-				chosen_file = filedialog.askopenfilename(
-					parent=self,
-					title="Select Active Sequence for List Mode",
-					filetypes=[
-						("CSV Files (*.csv)", "*.csv"),
-						("All Files (*.*)", "*.*"),
-					],
-				)
-				if chosen_file:
-					self.set_active_sequence_file(chosen_file)
-				return
+			category = self.category_var.get()
+			if not hasattr(self, "controller") or not self.controller:
+					return
 
-			# Route to the sequence configuration frame if available
-			try:
-				self.choose_battery_model_file()
-			except Exception:
+			if category == "Battery Sim":
+				self.controller.show_frame("Batterysimulationpage")
+			else:
 				self.controller.show_frame("canSequencePage")
+
+				# Route to the sequence configuration frame if available
+				try:
+					self.choose_battery_model_file()
+				except Exception:
+					self.controller.show_frame("canSequencePage")
 
 		elif category == "Battery Sim":
 			self.choose_battery_model_file()
 
 	def choose_battery_model_file(self):
-			"""Opens file dialog to select a battery model file (.json) and sends its path."""
-			chosen_file = filedialog.askopenfilename(
-				parent=self,
-				title="Select Battery Model File",
-				filetypes=[
-					("JSON Files (*.json)", "*.json"),
-					("All Files (*.*)", "*.*")
-				],
-			)
-			if chosen_file:
-				self.battery_model_file_path = chosen_file
-				if hasattr(self, "controller") and self.controller and hasattr(self.controller, "shared_data"):
-					self.controller.shared_data["battery_model_file_path"] = chosen_file
+		"""Opens file dialog to select a battery model file (.json) and pushes it to controller."""
+		chosen_file = filedialog.askopenfilename(
+			parent=self,
+			title="Select Battery Model File",
+			filetypes=[
+				("JSON Files (*.json)", "*.json"),
+				("All Files (*.*)", "*.*")
+			],
+		)
+		if chosen_file:
+			self.battery_model_file_path = chosen_file
+			
+			# Parse JSON data
+			model_data = {}
+			try:
+				import json
+				with open(chosen_file, "r", encoding="utf-8") as f:
+					model_data = json.load(f)
+			except Exception as e:
+				print(f"[ERROR]: Failed to parse battery model file: {e}")
 
-				print(f"[BATTERY MODEL SELECTED]: {chosen_file}")
-				self.send_battery_sim_mode()
+			# Store path and parameters in controller shared memory
+			if hasattr(self, "controller") and self.controller and hasattr(self.controller, "shared_data"):
+				self.controller.shared_data["battery_model_file_path"] = chosen_file
+				self.controller.shared_data["battery_model"] = model_data
+				self.controller.shared_data["model_file_exists"] = True
+
+			print(f"[BATTERY MODEL SELECTED]: {chosen_file}")
+			self.send_battery_sim_mode()
 
 	def sync_mode_state(self):
 		cat = self.category_var.get()
@@ -1048,22 +1034,6 @@ class seamlessPage(BasePage):
 			}
 			self._dispatch_to_worker(payload)
 
-	def choose_battery_model_file(self):
-			"""Opens file dialog to select a battery model file (.json) and sends its path."""
-			chosen_file = filedialog.askopenfilename(
-				parent=self,
-				title="Select Battery Model File",
-				filetypes=[
-					("JSON Files (*.json)", "*.json"),
-					("All Files (*.*)", "*.*")
-				],
-			)
-			if chosen_file:
-				self.battery_model_file_path = chosen_file
-				if hasattr(self, "controller") and self.controller and hasattr(self.controller, "shared_data"):
-					self.controller.shared_data["battery_model_file_path"] = chosen_file
-				print(f"[BATTERY MODEL SELECTED]: {chosen_file}")
-				self.send_battery_sim_mode()
 
 	# -------------------------------------------------------------------------
 	# Dispatch Router & Mode Switch Event
@@ -1109,9 +1079,6 @@ class seamlessPage(BasePage):
 		self.render_parameter_inputs()
 		self.sync_mode_state()
 		self.apply_parameters()
-
-		if category == "List":
-			self.open_sequence_config()
 
 	def on_stage_change(self, event=None):
 		stage = self.system_stage_var.get()
