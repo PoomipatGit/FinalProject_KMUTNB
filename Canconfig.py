@@ -1,5 +1,7 @@
+import os
+import glob
 import tkinter as tk
-from tkinter import ttk
+from tkinter import ttk, filedialog
 from basePage import BasePage
 import Filemanager
 
@@ -15,7 +17,8 @@ class Canconfigpage(BasePage):
         self.controller = controller
         self.config_file = Filemanager.get_required_path("CAN_config.json")
 
-        # --- 1. Network & Interface Variables ---
+        # --- 1. Network, Driver & Interface Variables ---
+        self.driver_file_var = tk.StringVar(value="canbusprotocal_niuera.py")
         self.interface_var = tk.StringVar(value="can0")
         self.protocol_var = tk.StringVar(value="CANopen")
         self.baudrate_var = tk.StringVar(value="250")
@@ -63,15 +66,34 @@ class Canconfigpage(BasePage):
         self.grid_container.grid_rowconfigure(1, weight=4, uniform="cfg_rows")
 
     # =========================================================================
-    # Top-Left Card (Row 0, Col 0): Network & Terminal Interface Setting
+    # Top-Left Card (Row 0, Col 0): Network, Driver & Interface Setting
     # =========================================================================
+
+    def _discover_driver_files(self) -> list:
+        """Scans the project directory for available CAN driver python files."""
+        base_dir = os.path.dirname(os.path.abspath(__file__))
+        patterns = ["canbusprotocal_*.py", "*driver*.py", "mock_*.py"]
+        found = set()
+        for pat in patterns:
+            for path in glob.glob(os.path.join(base_dir, pat)):
+                found.add(os.path.basename(path))
+
+        # Ensure standard driver options appear even before files are created
+        defaults = [
+            "canbusprotocal_niuera.py",
+            "canbusprotocal_phoenix.py",
+            "mock_can_library.py",
+        ]
+        for d in defaults:
+            found.add(d)
+        return sorted(found)
 
     def setup_network_panel(self):
         card = tk.Frame(self.grid_container, bg=self.panel_color, bd=1, relief="solid")
         card.grid(row=0, column=0, sticky="nsew", padx=3, pady=3)
         card.grid_columnconfigure(0, weight=0)
         card.grid_columnconfigure(1, weight=1)
-        for r in range(5):
+        for r in range(6):
             card.grid_rowconfigure(r, weight=1)
 
         tk.Label(
@@ -79,27 +101,51 @@ class Canconfigpage(BasePage):
             font=("Helvetica", 10, "bold"), bg=self.panel_color, fg="#FFFFFF"
         ).grid(row=0, column=0, columnspan=2, sticky="w", padx=8, pady=(4, 2))
 
-        # Row 1: Hardware Interface / Channel
+        # Row 1: Hardware Driver File Selector
+        tk.Label(
+            card, text="Driver File :", font=("Helvetica", 9, "bold"),
+            bg=self.panel_color, fg="#FFFFFF"
+        ).grid(row=1, column=0, sticky="w", padx=8, pady=2)
+
+        drv_frame = tk.Frame(card, bg=self.panel_color)
+        drv_frame.grid(row=1, column=1, sticky="ew", padx=6, pady=2)
+        drv_frame.grid_columnconfigure(0, weight=1)
+
+        self.driver_box = ttk.Combobox(
+            drv_frame, textvariable=self.driver_file_var,
+            values=self._discover_driver_files(),
+            font=("Helvetica", 9, "bold")
+        )
+        self.driver_box.grid(row=0, column=0, sticky="ew", padx=(0, 4))
+        self.driver_box.bind("<<ComboboxSelected>>", lambda e: self.on_driver_selected())
+
+        tk.Button(
+            drv_frame, text="Browse...", font=("Helvetica", 8, "bold"),
+            bg=self.button_color, fg="#FFFFFF", relief="groove", bd=1, padx=6,
+            cursor="hand2", command=self.browse_driver_file
+        ).grid(row=0, column=1, sticky="e")
+
+        # Row 2: Hardware Interface / Channel
         tk.Label(
             card, text="CAN Channel :", font=("Helvetica", 9, "bold"),
             bg=self.panel_color, fg="#FFFFFF"
-        ).grid(row=1, column=0, sticky="w", padx=8, pady=2)
+        ).grid(row=2, column=0, sticky="w", padx=8, pady=2)
 
         iface_box = ttk.Combobox(
             card, textvariable=self.interface_var,
             values=["can0", "can1", "vcan0", "virtual"],
             state="readonly", width=12, font=("Helvetica", 9, "bold")
         )
-        iface_box.grid(row=1, column=1, sticky="w", padx=6, pady=2)
+        iface_box.grid(row=2, column=1, sticky="w", padx=6, pady=2)
 
-        # Row 2: Protocol
+        # Row 3: Protocol
         tk.Label(
             card, text="Protocol :", font=("Helvetica", 9, "bold"),
             bg=self.panel_color, fg="#FFFFFF"
-        ).grid(row=2, column=0, sticky="w", padx=8, pady=2)
+        ).grid(row=3, column=0, sticky="w", padx=8, pady=2)
 
         proto_frame = tk.Frame(card, bg=self.panel_color)
-        proto_frame.grid(row=2, column=1, sticky="w", padx=4)
+        proto_frame.grid(row=3, column=1, sticky="w", padx=4)
         for p in ("CANopen", "CAN FD", "J1979"):
             tk.Radiobutton(
                 proto_frame, text=p, variable=self.protocol_var, value=p,
@@ -108,14 +154,14 @@ class Canconfigpage(BasePage):
                 font=("Helvetica", 9, "bold")
             ).pack(side="left", padx=4)
 
-        # Row 3: Baud Rate
+        # Row 4: Baud Rate
         tk.Label(
             card, text="Baud Rate :", font=("Helvetica", 9, "bold"),
             bg=self.panel_color, fg="#FFFFFF"
-        ).grid(row=3, column=0, sticky="w", padx=8, pady=2)
+        ).grid(row=4, column=0, sticky="w", padx=8, pady=2)
 
         baud_frame = tk.Frame(card, bg=self.panel_color)
-        baud_frame.grid(row=3, column=1, sticky="w", padx=6)
+        baud_frame.grid(row=4, column=1, sticky="w", padx=6)
         ttk.Combobox(
             baud_frame, textvariable=self.baudrate_var,
             values=["125", "250", "500", "1000"],
@@ -126,14 +172,14 @@ class Canconfigpage(BasePage):
             bg=self.panel_color, fg="#FFFFFF"
         ).pack(side="left", padx=5)
 
-        # Row 4: Default Bus Frame Type
+        # Row 5: Default Bus Frame Type
         tk.Label(
             card, text="Default Frame :", font=("Helvetica", 9, "bold"),
             bg=self.panel_color, fg="#FFFFFF"
-        ).grid(row=4, column=0, sticky="w", padx=8, pady=2)
+        ).grid(row=5, column=0, sticky="w", padx=8, pady=2)
 
         type_frame = tk.Frame(card, bg=self.panel_color)
-        type_frame.grid(row=4, column=1, sticky="w", padx=4)
+        type_frame.grid(row=5, column=1, sticky="w", padx=4)
         for t in ("11-Bit", "29-Bit"):
             tk.Radiobutton(
                 type_frame, text=t, variable=self.canmsgtype_var, value=t,
@@ -142,6 +188,43 @@ class Canconfigpage(BasePage):
                 activebackground=self.panel_color, activeforeground="#FFFFFF",
                 font=("Helvetica", 9, "bold")
             ).pack(side="left", padx=6)
+
+    def browse_driver_file(self):
+        """Opens file dialog to select an external Python CAN driver module."""
+        base_dir = os.path.dirname(os.path.abspath(__file__))
+        chosen = filedialog.askopenfilename(
+            parent=self,
+            initialdir=base_dir,
+            title="Select CAN Protocol Driver File",
+            filetypes=[("Python Driver (*.py)", "*.py"), ("All Files (*.*)", "*.*")],
+        )
+        if chosen:
+            # Store relative filename if inside project folder, otherwise full path
+            rel_path = os.path.relpath(chosen, base_dir)
+            display_val = rel_path if not rel_path.startswith("..") else chosen
+            self.driver_file_var.set(display_val)
+
+            # Add to dropdown choices if not already listed
+            current_vals = list(self.driver_box["values"])
+            if display_val not in current_vals:
+                self.driver_box["values"] = current_vals + [display_val]
+
+            self.on_driver_selected()
+
+    def on_driver_selected(self):
+        """Logs driver switch and notifies controller/worker immediately."""
+        drv = self.driver_file_var.get().strip()
+        if not drv:
+            return
+        self.log_terminal(f"[DRIVER]: Selected protocol driver -> {drv}")
+        if hasattr(self, "controller") and self.controller:
+            if hasattr(self.controller, "shared_data"):
+                self.controller.shared_data["active_driver_file"] = drv
+            if hasattr(self.controller, "command_queue"):
+                self.controller.command_queue.put({
+                    "action": "LOAD_DRIVER",
+                    "driver_file": drv,
+                })
 
     # =========================================================================
     # Top-Right Card (Row 0, Col 1): Identifier & Watchdog Safety
@@ -468,6 +551,7 @@ class Canconfigpage(BasePage):
 
     def get_config_data(self) -> dict:
         return {
+            "driver_file": self.driver_file_var.get().strip(),
             "interface": self.interface_var.get(),
             "protocol": self.protocol_var.get(),
             "baudrate_kbps": int(self.baudrate_var.get() or 250),
@@ -483,6 +567,11 @@ class Canconfigpage(BasePage):
     def load_can_settings(self):
         data = Filemanager.load_json(self.config_file)
         if data:
+            saved_drv = data.get("driver_file", "canbusprotocal_niuera.py")
+            self.driver_file_var.set(saved_drv)
+            if saved_drv and saved_drv not in self.driver_box["values"]:
+                self.driver_box["values"] = list(self.driver_box["values"]) + [saved_drv]
+
             self.interface_var.set(data.get("interface", "can0"))
             self.protocol_var.set(data.get("protocol", "CANopen"))
             self.baudrate_var.set(str(data.get("baudrate_kbps", 250)))
@@ -499,11 +588,15 @@ class Canconfigpage(BasePage):
         try:
             cfg = self.get_config_data()
             Filemanager.save_json(self.config_file, cfg)
-            self.bus_status_var.set(f"Status: {cfg['interface']} @ {cfg['baudrate_kbps']} kbps")
-            self.log_terminal(f"[CONFIG]: Saved & applying {cfg['interface']} ({cfg['baudrate_kbps']} kbps, {cfg['can_msg_type']})")
+            self.bus_status_var.set(f"Status: {cfg['interface']} @ {cfg['baudrate_kbps']} kbps ({os.path.basename(cfg['driver_file'])})")
+            self.log_terminal(
+                f"[CONFIG]: Saved & applying driver '{cfg['driver_file']}' on "
+                f"{cfg['interface']} ({cfg['baudrate_kbps']} kbps, {cfg['can_msg_type']})"
+            )
 
             if hasattr(self, "controller") and self.controller:
                 self.controller.shared_data["can_config"] = cfg
+                self.controller.shared_data["active_driver_file"] = cfg["driver_file"]
                 if hasattr(self.controller, "command_queue"):
                     self.controller.command_queue.put({"action": "REINIT_CAN", "config": cfg})
         except ValueError as e:
@@ -551,12 +644,3 @@ class Canconfigpage(BasePage):
             if status_msg:
                 self.log_terminal(f"[RX/BUS]: {status_msg}")
         self.after(300, self.poll_can_status)
-
-"""
-if __name__ == "__main__":
-    root = tk.Tk()
-    root.geometry("950x570")
-    app = Canconfigpage(root)
-    app.pack(fill="both", expand=True)
-    root.mainloop()
-"""
