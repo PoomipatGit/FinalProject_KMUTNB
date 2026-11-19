@@ -2,6 +2,8 @@ import json
 import os
 import tkinter as tk
 from tkinter import ttk, filedialog
+
+from matplotlib import category
 from basePage import BasePage
 import Filemanager
 
@@ -12,23 +14,33 @@ class OperationPage(BasePage):
     accent_color = "#5588a3"
 
     # Supported mode hierarchy
+# Supported mode hierarchy per Power Mode
     MODE_HIERARCHY = {
         "Fixed": ["CV", "CC", "CP"],
+        "Step": ["CV", "CC", "CP"],
         "List": ["CV", "CC", "CP"],
-        "Step": ["CC", "CV"],
-        "Battery Sim": ["CV", "CC", "Ri"]
     }
 
-    AUTO_SEQUENCE_FILES = {
-        "Fixed": "Fix_sequence.csv",
-        "Step": "Step_sequence.csv",
-        "Battery Sim": "BatterySim_sequence.csv"
+    OFF_GRID_HIERARCHY = {
+        "Fixed": ["AC Grid-Form"],
+        "List": ["AC Grid-Form"],
     }
 
     DIRECTION_LIMIT_FILES = {
         "Source": "limit_source.json",
-        "Sink": "limit_sink.json",
-        "Seamless": "limit_auto.json"
+        "Sink (On-Grid)": "limit_sink_DC.json",
+        "Sink (Off-Grid)": "limit_sink_AC.json",
+        "Seamless": "limit_auto.json",
+    }
+
+    AUTO_SEQUENCE_FILES = {
+        ("Source", "Fixed"): "Fixed_src.csv",
+        ("Source", "Step"): "Step_src.csv",
+        ("Sink (On-Grid)", "Fixed"): "Fixed_snk.csv",
+        ("Sink (On-Grid)", "Step"): "Step_snk.csv",
+        ("Sink (Off-Grid)", "Fixed"): "Fixed_snk_offgrid.csv",
+        ("Seamless", "Fixed"): "Fixed_auto.csv",
+        ("Seamless", "Step"): "Step_auto.csv",
     }
 
     def __init__(self, parent, controller=None):
@@ -57,6 +69,16 @@ class OperationPage(BasePage):
         self.step_max_var = tk.StringVar(value="10.0")
         self.step_size_var = tk.StringVar(value="1.0")
         self.step_time_var = tk.StringVar(value="1.0")
+
+        # Step CP extra limit & Off-Grid / Reactive setpoints
+        self.step_pwr_min_var = tk.StringVar(value="0.0")
+        self.step_pwr_max_var = tk.StringVar(value="500.0")
+        self.step_vi_lim_var = tk.StringVar(value="400.0")   # Max V or I cap during Step CP
+
+        self.set_ac_volt_var = tk.StringVar(value="380.0")   # Off-Grid AC Voltage (340-420V)
+        self.set_ac_freq_var = tk.StringVar(value="50.0")    # Off-Grid AC Frequency (50/60Hz)
+        self.set_q_var = tk.StringVar(value="0.0")           # On-Grid Reactive Power (Var)
+        self.set_s_var = tk.StringVar(value="0.0")           # Apparent Power readout/cap (VA)
 
         # DC & AC Side telemetry display variables
         self.dc_volt_var = tk.StringVar(value="0.00 V")
@@ -112,6 +134,11 @@ class OperationPage(BasePage):
         """Reloads latest limit parameters whenever this page is brought to front."""
         super().tkraise(*args, **kwargs)
         self.load_limits()
+        if self.category_var.get() == "List":
+            self.update_mode_sequence("List")
+            self.render_parameter_inputs()
+        self.sync_mode_state()
+        self.apply_parameters()
 
     # =========================================================================
     # Grid Layout & Top-Left Combined Selector (Row 0, Col 0)
@@ -160,8 +187,8 @@ class OperationPage(BasePage):
 
         self.dir_dropdown = ttk.Combobox(
             self.stage_container, textvariable=self.operation_dir_var,
-            values=["Source", "Sink", "Seamless"], state="readonly",
-            width=9, font=("Helvetica", 8, "bold")
+            values=["Source", "Sink (On-Grid)", "Sink (Off-Grid)", "Seamless"],
+            state="readonly", width=13, font=("Helvetica", 8, "bold")
         )
         self.dir_dropdown.grid(row=0, column=2, sticky="w", pady=(2, 1))
         self.dir_dropdown.bind("<<ComboboxSelected>>", self.on_direction_change)
@@ -533,100 +560,257 @@ class OperationPage(BasePage):
     # Dynamic Input Rendering Logic
     # =========================================================================
 
+    def _bind_scrollable(self, widget, var: tk.StringVar, step: float, min_val: float, max_val: float):
+        """Scroll up to increase, scroll down to decrease, and auto-sync to shared_data."""
+        def _on_scroll(event):
+            try:
+                curr = float(var.get())
+            except ValueError:
+                curr = 0.0
+
+            if getattr(event, "num", None) == 4 or getattr(event, "delta", 0) > 0:
+                new_val = min(max_val, round(curr + step, 3))
+            elif getattr(event, "num", None) == 5 or getattr(event, "delta", 0) < 0:
+                new_val = max(min_val, round(curr - step, 3))
+            else:
+                return
+
+            var.set(str(new_val))
+            self.apply_parameters()
+
+        widget.bind("<MouseWheel>", _on_scroll)
+        widget.bind("<Button-4>", _on_scroll)
+        widget.bind("<Button-5>", _on_scroll)
+
+    def _build_scroll_row(self, parent, row_idx, label_text, var, unit_text, step=1.0, min_v=-1000.0, max_v=1000.0):
+        """Creates a single active, mouse-wheel scrollable parameter row."""
+        parent.grid_rowconfigure(row_idx, weight=1)
+        tk.Label(
+            parent, text=label_text, font=("Helvetica", 8, "bold"),
+            bg=self.label_color, fg="#FFFFFF"
+        ).grid(row=row_idx, column=0, sticky="w", pady=1)
+
+        entry = tk.Entry(
+            parent, textvariable=var, width=7, font=("Helvetica", 9, "bold"),
+            justify="center", bd=1, bg="#FFFFFF", fg="#000000"
+        )
+        entry.grid(row=row_idx, column=1, padx=3, pady=1)
+        entry.bind("<Return>", lambda e: self.apply_parameters())
+        self._bind_scrollable(entry, var, step=step, min_val=min_v, max_val=max_v)
+
+        tk.Label(
+            parent, text=unit_text, font=("Helvetica", 8, "bold"),
+            bg=self.label_color, fg="#DCE2E8"
+        ).grid(row=row_idx, column=2, sticky="w", pady=1)
+        return entry
+
+    def _build_step_cell(self, parent, row, col_start, label, var, unit, step=1.0, min_v=0.0, max_v=1000.0):
+        lbl = tk.Label(parent, text=label, font=("Helvetica", 8, "bold"), bg=self.label_color, fg="#FFFFFF")
+        lbl.grid(row=row, column=col_start, sticky="w", padx=(2, 1), pady=1)
+
+        entry = tk.Entry(parent, textvariable=var, width=5, font=("Helvetica", 8, "bold"), justify="center", bd=1)
+        entry.grid(row=row, column=col_start + 1, padx=1, pady=1)
+        entry.bind("<Return>", lambda e: self.apply_parameters())
+        self._bind_scrollable(entry, var, step=step, min_val=min_v, max_val=max_v)
+
+        unit_lbl = tk.Label(parent, text=unit, font=("Helvetica", 8, "bold"), bg=self.label_color, fg="#DCE2E8")
+        unit_lbl.grid(row=row, column=col_start + 2, sticky="w", padx=(1, 3), pady=1)
+
     def render_parameter_inputs(self):
-        """Rebuilds the inner parameter form based on active Category and Sub-Mode."""
+        """Shows ONLY the relevant scrollable blocks for the active Power Mode, Category, and Control."""
         for widget in self.form_container.winfo_children():
             widget.destroy()
 
+        direction = self.operation_dir_var.get()
         category = self.category_var.get()
         sub_mode = self.sub_mode_var.get()
 
-        if category in ("Fixed", "List", "Battery Sim"):
+        # ---------------------------------------------------------------------
+        # CASE 1: LIST MODE (Controlled by CSV Sequence)
+        # ---------------------------------------------------------------------
+        if category == "List":
+            file_display = (
+                os.path.basename(self.active_sequence_path)
+                if self.active_sequence_path
+                else "No file selected"
+            )
+            tk.Label(
+                self.form_container,
+                text="Active Sequence File:",
+                font=("Helvetica", 8, "bold"),
+                bg=self.label_color,
+                fg="#DCE2E8",
+            ).pack(pady=(4, 1))
+
+            tk.Label(
+                self.form_container,
+                text=file_display,
+                font=("Helvetica", 9, "bold"),
+                bg="#002233",
+                fg="#00FFCC",
+                padx=8,
+                pady=3,
+                relief="groove",
+                bd=1,
+            ).pack(fill="x", padx=6, pady=2)
+            return
+
+        # ---------------------------------------------------------------------
+        # CASE 2: SINK (OFF-GRID) -> AC Grid-Forming Voltage & Frequency
+        # ---------------------------------------------------------------------
+        if direction == "Sink (Off-Grid)":
             self.form_container.grid_columnconfigure(0, weight=1)
-            self.form_container.grid_columnconfigure(1, weight=0)
-            self.form_container.grid_columnconfigure(2, weight=0)
-            for c in (3, 4, 5):
-                self.form_container.grid_columnconfigure(c, weight=0)
+            self.form_container.grid_columnconfigure((1, 2), weight=0)
+            self._build_scroll_row(self.form_container, 0, "AC Volt :", self.set_ac_volt_var, "V", step=1.0, min_v=340.0, max_v=420.0)
+            self._build_scroll_row(self.form_container, 1, "AC Freq :", self.set_ac_freq_var, "Hz", step=0.5, min_v=50.0, max_v=60.0)
+            tk.Label(
+                self.form_container, text="⚠ Disconnect utility grid in Off-Grid!",
+                font=("Helvetica", 7, "bold"), bg=self.label_color, fg="#FFCC00"
+            ).grid(row=2, column=0, columnspan=3, pady=(2, 0))
+            return
 
-            self._build_row(self.form_container, 0, "Voltage :", self.set_volt_var, "V")
-            self._build_row(self.form_container, 1, "Current :", self.set_curr_var, "A")
-            self._build_row(self.form_container, 2, "Power :", self.set_pwr_var, "W")
+        # ---------------------------------------------------------------------
+        # CASE 3: FIXED MODE (Source, Sink On-Grid, Seamless)
+        # ---------------------------------------------------------------------
+        if category == "Fixed":
+            self.form_container.grid_columnconfigure(0, weight=1)
+            self.form_container.grid_columnconfigure((1, 2), weight=0)
 
-            if category == "List":
-                self._set_field_state(self.entry_v, self.set_volt_var, active=False)
-                self._set_field_state(self.entry_i, self.set_curr_var, active=False)
-                self._set_field_state(self.entry_p, self.set_pwr_var, active=False)
-            else:
-                self._set_field_state(self.entry_v, self.set_volt_var, active=(sub_mode in ("CV", "Ri")))
-                self._set_field_state(self.entry_i, self.set_curr_var, active=(sub_mode == "CC"))
-                self._set_field_state(self.entry_p, self.set_pwr_var, active=(sub_mode == "CP"))
+            i_min = -78.0 if direction in ("Sink (On-Grid)", "Seamless") else 0.0
+            i_max = 0.0 if direction == "Sink (On-Grid)" else 73.5
 
+            if sub_mode == "CV":
+                if self.set_volt_var.get() == "-":
+                    self.set_volt_var.set("0.0")
+                self._build_scroll_row(self.form_container, 0, "Voltage :", self.set_volt_var, "V", step=1.0, min_v=0.0, max_v=1000.0)
+
+            elif sub_mode == "CC":
+                if self.set_curr_var.get() == "-":
+                    self.set_curr_var.set("0.0")
+                self._build_scroll_row(self.form_container, 0, "Current :", self.set_curr_var, "A", step=0.5, min_v=i_min, max_v=i_max)
+
+            elif sub_mode == "CP":
+                if self.set_pwr_var.get() == "-":
+                    self.set_pwr_var.set("0.0")
+                if self.set_volt_var.get() == "-":
+                    self.set_volt_var.set("400.0")
+                self._build_scroll_row(self.form_container, 0, "Power (P) :", self.set_pwr_var, "W", step=50.0, min_v=-22000.0, max_v=22000.0)
+                self._build_scroll_row(self.form_container, 1, "Voltage :", self.set_volt_var, "V", step=5.0, min_v=150.0, max_v=1000.0)
+                if direction in ("Sink (On-Grid)", "Seamless"):
+                    self._build_scroll_row(self.form_container, 2, "Reactive (Q):", self.set_q_var, "Var", step=50.0, min_v=-10500.0, max_v=10500.0)
+
+        # ---------------------------------------------------------------------
+        # CASE 4: STEP MODE (CV, CC, and CP)
+        # ---------------------------------------------------------------------
         elif category == "Step":
             self.form_container.grid_columnconfigure((0, 3), weight=1)
-            self.form_container.grid_columnconfigure((1, 4), weight=0)
-            self.form_container.grid_columnconfigure((2, 5), weight=0)
+            self.form_container.grid_columnconfigure((1, 2, 4, 5), weight=0)
 
-            unit = "A" if sub_mode == "CC" else "V"
+            if sub_mode in ("CV", "CC"):
+                unit = "A" if sub_mode == "CC" else "V"
+                self._build_step_cell(self.form_container, 0, 0, "Min :", self.step_min_var, unit, step=1.0, min_v=-1000.0, max_v=1000.0)
+                self._build_step_cell(self.form_container, 1, 0, "Max :", self.step_max_var, unit, step=1.0, min_v=-1000.0, max_v=1000.0)
+                self._build_step_cell(self.form_container, 0, 3, "Step :", self.step_size_var, unit, step=0.5, min_v=0.1, max_v=500.0)
+                self._build_step_cell(self.form_container, 1, 3, "Total T:", self.step_time_var, "s", step=1.0, min_v=0.5, max_v=3600.0)
 
-            self._build_step_cell(self.form_container, row=0, col_start=0, label="Min :", var=self.step_min_var, unit=unit)
-            self._build_step_cell(self.form_container, row=1, col_start=0, label="Max :", var=self.step_max_var, unit=unit)
-            self._build_step_cell(self.form_container, row=0, col_start=3, label="Step :", var=self.step_size_var, unit=unit)
-            self._build_step_cell(self.form_container, row=1, col_start=3, label="Time :", var=self.step_time_var, unit="s")
-
-    def _build_step_cell(self, parent, row, col_start, label, var, unit):
-        lbl = tk.Label(parent, text=label, font=("Helvetica", 8, "bold"), bg=self.label_color, fg="#FFFFFF")
-        lbl.grid(row=row, column=col_start, sticky="w", padx=(2, 1), pady=2)
-
-        entry = tk.Entry(parent, textvariable=var, width=4, font=("Helvetica", 8, "bold"), justify="center", bd=1)
-        entry.grid(row=row, column=col_start + 1, padx=1, pady=2)
-        entry.bind("<Return>", lambda e: self.apply_parameters())
-
-        unit_lbl = tk.Label(parent, text=unit, font=("Helvetica", 8, "bold"), bg=self.label_color, fg="#FFFFFF")
-        unit_lbl.grid(row=row, column=col_start + 2, sticky="w", padx=(1, 4), pady=2)
-
-    def _build_row(self, parent, row_idx, label_text, var, unit_text, is_step=False):
-        lbl = tk.Label(parent, text=label_text, font=("Helvetica", 8, "bold"), bg=self.label_color, fg="#FFFFFF")
-        lbl.grid(row=row_idx, column=0, sticky="w", pady=0)
-
-        entry = tk.Entry(parent, textvariable=var, width=5, font=("Helvetica", 8, "bold"), justify="center", bd=1)
-        entry.grid(row=row_idx, column=1, padx=2, pady=0)
-        entry.bind("<Return>", lambda e: self.apply_parameters())
-
-        unit_lbl = tk.Label(parent, text=unit_text, font=("Helvetica", 8, "bold"), bg=self.label_color, fg="#FFFFFF")
-        unit_lbl.grid(row=row_idx, column=2, sticky="w", pady=0)
-
-        if not is_step:
-            if row_idx == 0:
-                self.entry_v = entry
-            elif row_idx == 1:
-                self.entry_i = entry
-            elif row_idx == 2:
-                self.entry_p = entry
-
-    def _set_field_state(self, entry_widget, var, active=True, default_val="0.0"):
-        if active:
-            entry_widget.config(state="normal", bg="#FFFFFF", fg="#000000")
-            if var.get() == "-":
-                var.set(default_val)
-        else:
-            entry_widget.config(state="normal")
-            var.set("-")
-            entry_widget.config(state="disabled", disabledbackground="#90A4AE", disabledforeground="#37474F")
+            elif sub_mode == "CP":
+                self._build_step_cell(self.form_container, 0, 0, "Min P:", self.step_pwr_min_var, "W", step=50.0, min_v=-22000.0, max_v=22000.0)
+                self._build_step_cell(self.form_container, 1, 0, "Max P:", self.step_pwr_max_var, "W", step=50.0, min_v=-22000.0, max_v=22000.0)
+                self._build_step_cell(self.form_container, 2, 0, "V Cap:", self.step_vi_lim_var, "V", step=5.0, min_v=150.0, max_v=1000.0)
+                self._build_step_cell(self.form_container, 0, 3, "Step :", self.step_size_var, "W", step=10.0, min_v=1.0, max_v=5000.0)
+                self._build_step_cell(self.form_container, 1, 3, "Total T:", self.step_time_var, "s", step=1.0, min_v=0.5, max_v=3600.0)
 
     # =========================================================================
     # Event Callbacks & Routing
     # =========================================================================
 
     def on_direction_change(self, event=None):
-        """Handles switching between Source, Sink, and Seamless modes."""
+        """Handles switching between Source, Sink (On-Grid), Sink (Off-Grid), and Seamless."""
         direction = self.operation_dir_var.get()
         print(f"[POWER MODE EVENT]: Switched to -> {direction}")
 
-        if hasattr(self, "controller") and self.controller and hasattr(self.controller, "shared_data"):
-            self.controller.shared_data["operation_direction"] = direction
+        hierarchy = self.OFF_GRID_HIERARCHY if direction == "Sink (Off-Grid)" else self.MODE_HIERARCHY
+        self.category_dropdown["values"] = list(hierarchy.keys())
+        if self.category_var.get() not in hierarchy:
+            self.category_var.set("Fixed")
 
+        avail_sub = hierarchy[self.category_var.get()]
+        self.sub_mode_dropdown["values"] = avail_sub
+        if self.sub_mode_var.get() not in avail_sub:
+            self.sub_mode_var.set(avail_sub[0])
+        self.update_mode_sequence(self.category_var.get())
+        self.render_parameter_inputs()
+        self.sync_mode_state()
         self.load_limits()
         self.apply_parameters()
+        
+
+    def send_fixed_mode(self):
+        base = self.get_stage_and_sequence()
+        direction = base["operation_direction"]
+        sub = self.sub_mode_var.get()
+
+        if direction == "Sink (Off-Grid)":
+            payload = {
+                **base,
+                "mode": "Fixed",
+                "control_sub_mode": "AC_OFF_GRID",
+                "ac_target_voltage": float(self.set_ac_volt_var.get()),
+                "ac_target_frequency": float(self.set_ac_freq_var.get()),
+                "target_voltage": 0.0,
+                "target_current": 0.0,
+                "target_power": 0.0,
+            }
+        else:
+            v_val = float(self.set_volt_var.get()) if sub in ("CV", "CP") else 0.0
+            i_val = float(self.set_curr_var.get()) if sub == "CC" else 0.0
+            p_val = float(self.set_pwr_var.get()) if sub == "CP" else 0.0
+            q_val = float(self.set_q_var.get()) if (sub == "CP" and direction in ("Sink (On-Grid)", "Seamless")) else 0.0
+
+            payload = {
+                **base,
+                "mode": "Fixed",
+                "control_sub_mode": sub,
+                "target_voltage": v_val,
+                "target_current": i_val,
+                "target_power": p_val,
+                "target_reactive_power": q_val,
+            }
+        self._dispatch_to_worker(payload)
+
+    def send_step_mode(self):
+        base = self.get_stage_and_sequence()
+        sub = self.sub_mode_var.get()
+
+        if sub == "CP":
+            s_min = float(self.step_pwr_min_var.get())
+            s_max = float(self.step_pwr_max_var.get())
+            v_cap = float(self.step_vi_lim_var.get())
+            unit = "W"
+        else:
+            s_min = float(self.step_min_var.get())
+            s_max = float(self.step_max_var.get())
+            v_cap = 0.0
+            unit = "A" if sub == "CC" else "V"
+
+        s_size = max(0.01, abs(float(self.step_size_var.get())))
+        total_time = max(0.1, float(self.step_time_var.get()))
+        num_steps = max(1.0, (abs(s_max - s_min) / s_size))
+        per_step_sec = round(total_time / num_steps, 4)
+
+        payload = {
+            **base,
+            "mode": "Step",
+            "control_sub_mode": sub,
+            "step_min": s_min,
+            "step_max": s_max,
+            "step_size": s_size,
+            "step_total_time_sec": total_time,
+            "step_time_sec": per_step_sec,
+            "step_v_cap": v_cap,
+            "step_unit": unit,
+        }
+        self._dispatch_to_worker(payload)
 
     def on_stage_change(self, event=None):
         stage = self.system_stage_var.get()
@@ -806,6 +990,8 @@ class OperationPage(BasePage):
         self.after(500, self.poll_value)
 
     def update_mode_sequence(self, category: str):
+        direction = self.operation_dir_var.get()
+
         if category == "List":
             active_path = ""
             if hasattr(self, "controller") and self.controller:
@@ -815,36 +1001,18 @@ class OperationPage(BasePage):
                 active_path = getattr(self, "list_active_sequence_path", "")
 
             if not active_path or not os.path.exists(active_path):
-                default_list = os.path.join(
-                    os.path.dirname(os.path.abspath(__file__)),
-                    "Required",
-                    "List_sequence.csv",
-                )
+                default_list = str(Filemanager.get_required_path("List_sequence.csv"))
                 if os.path.exists(default_list):
                     active_path = default_list
 
             self.active_sequence_path = active_path
             print(f"[MODE LIST]: Using active sequence -> '{self.active_sequence_path}'")
-
-        elif category == "Battery Sim":
-            if self.battery_sim_sequence_path and os.path.exists(self.battery_sim_sequence_path):
-                self.active_sequence_path = self.battery_sim_sequence_path
-            else:
-                filename = self.AUTO_SEQUENCE_FILES.get("Battery Sim", "BatterySim_sequence.csv")
-                base_dir = os.path.dirname(os.path.abspath(__file__))
-                self.active_sequence_path = os.path.join(base_dir, "Required", filename)
-
-            print(f"[MODE BATTERY SIM]: Using sequence -> '{self.active_sequence_path}'")
-
         else:
-            filename = self.AUTO_SEQUENCE_FILES.get(category, "")
+            filename = self.AUTO_SEQUENCE_FILES.get((direction, category), "")
             if filename:
-                if hasattr(Filemanager, "get_required_path"):
-                    self.active_sequence_path = str(Filemanager.get_required_path(filename))
-                else:
-                    base_dir = os.path.dirname(os.path.abspath(__file__))
-                    self.active_sequence_path = os.path.join(base_dir, "Required", filename)
-            print(f"[MODE {category.upper()}]: Auto-assigned sequence -> '{self.active_sequence_path}'")
+                self.active_sequence_path = str(Filemanager.get_required_path(filename))
+            print(f"[MODE {direction.upper()} / {category.upper()}]: Assigned sequence -> '{self.active_sequence_path}'")
+
 
     def set_active_sequence_file(self, csv_file_path: str):
         self.list_active_sequence_path = csv_file_path
@@ -852,8 +1020,9 @@ class OperationPage(BasePage):
 
         if hasattr(self, "controller") and self.controller:
             self.controller.shared_data["active_sequence_path"] = csv_file_path
+            self.controller.shared_data["active_sequence_csv"] = csv_file_path
 
-        print(f"[ACTIVE SEQUENCE SET]: {csv_file_path}")
+        self.render_parameter_inputs()
         self.send_list_mode()
 
     def get_stage_and_sequence(self):
@@ -869,39 +1038,6 @@ class OperationPage(BasePage):
             ),
         }
 
-    def send_fixed_mode(self):
-        base = self.get_stage_and_sequence()
-        sub = self.sub_mode_var.get()
-
-        v_val = float(self.set_volt_var.get()) if sub == "CV" and self.set_volt_var.get() != "-" else 0.0
-        i_val = float(self.set_curr_var.get()) if sub == "CC" and self.set_curr_var.get() != "-" else 0.0
-        p_val = float(self.set_pwr_var.get()) if sub == "CP" and self.set_pwr_var.get() != "-" else 0.0
-
-        payload = {
-            **base,
-            "mode": "Fixed",
-            "control_sub_mode": sub,
-            "target_voltage": v_val,
-            "target_current": i_val,
-            "target_power": p_val,
-        }
-        self._dispatch_to_worker(payload)
-
-    def send_step_mode(self):
-        base = self.get_stage_and_sequence()
-        sub = self.sub_mode_var.get()
-
-        payload = {
-            **base,
-            "mode": "Step",
-            "control_sub_mode": sub,
-            "step_min": float(self.step_min_var.get()),
-            "step_max": float(self.step_max_var.get()),
-            "step_size": float(self.step_size_var.get()),
-            "step_time_sec": float(self.step_time_var.get()),
-            "step_unit": "A" if sub == "CC" else "V",
-        }
-        self._dispatch_to_worker(payload)
 
     def send_list_mode(self):
         base = self.get_stage_and_sequence()

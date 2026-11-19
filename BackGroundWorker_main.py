@@ -2,7 +2,28 @@ import queue
 import threading
 import time
 import json  # Cleaner and safer than pprint for dictionaries
+import importlib.util
+import os
 
+def load_driver_class(driver_path: str):
+	"""Dynamically loads CanbusProtocol from any selected driver .py file."""
+	base_dir = os.path.dirname(os.path.abspath(__file__))
+	full_path = driver_path if os.path.isabs(driver_path) else os.path.join(base_dir, driver_path)
+
+	spec = importlib.util.spec_from_file_location("active_can_driver", full_path)
+	module = importlib.util.module_from_spec(spec)
+	spec.loader.exec_module(module)
+	return module.CanbusProtocol
+
+def load_driver_class(driver_path: str):
+	"""Dynamically loads CanbusProtocol from any selected driver .py file."""
+	base_dir = os.path.dirname(os.path.abspath(__file__))
+	full_path = driver_path if os.path.isabs(driver_path) else os.path.join(base_dir, driver_path)
+
+	spec = importlib.util.spec_from_file_location("active_can_driver", full_path)
+	module = importlib.util.module_from_spec(spec)
+	spec.loader.exec_module(module)
+	return module.CanbusProtocol
 
 class ConstantTelemetryWorker:
 
@@ -36,7 +57,41 @@ class ConstantTelemetryWorker:
 					while not cmd_q.empty():
 						try:
 							cmd = cmd_q.get_nowait()
-							print(f"\n[WORKER RECEIVED COMMAND]: {json.dumps(cmd)}")
+							action = cmd.get("action")
+
+							if action in ("LOAD_DRIVER", "REINIT_CAN"):
+								cfg = cmd.get("config") or self.shared_data.get("can_config", {})
+								drv_file = cmd.get("driver_file") or cfg.get("driver_file", "canbusprotocal_niuera.py")
+								try:
+									DriverClass = load_driver_class(drv_file)
+									if hasattr(self, "can_driver") and self.can_driver:
+										self.can_driver.shutdown()
+									self.can_driver = DriverClass(
+										channel=cfg.get("interface", "can0"),
+										bitrate=int(cfg.get("baudrate_kbps", 250)) * 1000,
+									)
+									self.shared_data["can_config_feedback"] = f"Loaded driver: {os.path.basename(drv_file)}"
+								except Exception as e:
+									self.shared_data["can_config_feedback"] = f"Driver load failed: {e}"
+
+							elif action == "DISCONNECT_CAN":
+								if hasattr(self, "can_driver") and self.can_driver:
+									self.can_driver.shutdown()
+								self.shared_data["can_status"] = "Disconnected"
+								self.shared_data["can_config_feedback"] = f"Disconnected {cmd.get('interface', '')}"
+
+							elif action == "CAN_PING":
+								# Send read/ping frame via self.can_driver
+								self.shared_data["can_config_feedback"] = f"Ping sent to {cmd.get('target_id')}"
+
+							elif action == "CAN_CUSTOM_FRAME":
+								# Send raw frame using cmd["arbitration_id"], cmd["data"], cmd["is_extended"]
+								self.shared_data["can_config_feedback"] = f"Sent frame ID 0x{cmd['arbitration_id']:X}"
+
+							elif action == "EMERGENCY_STOP":
+								self.shared_data["is_running"] = False
+								self.shared_data["system_stage"] = "Standby"
+
 							cmd_q.task_done()
 						except queue.Empty:
 							break
@@ -45,6 +100,7 @@ class ConstantTelemetryWorker:
 				current_package = {
 					"operation_direction": self.shared_data.get("operation_direction"),
 					"mode": self.shared_data.get("mode"),
+					"Operation_page": self.shared_data.get("Operation_page"),
 					"control_sub_mode": self.shared_data.get("control_sub_mode"),
 					"system_stage": self.shared_data.get("system_stage"),
 					"is_running": self.shared_data.get("is_running"),
@@ -64,6 +120,11 @@ class ConstantTelemetryWorker:
 					"limits": self.shared_data.get("limits"),
 					"battery_test_profile": self.shared_data.get("battery_test_profile"),
 					"sim_limits": self.shared_data.get("sim_limits"),
+					"target_reactive_power": self.shared_data.get("target_reactive_power"),
+					"ac_target_voltage": self.shared_data.get("ac_target_voltage"),
+					"ac_target_frequency": self.shared_data.get("ac_target_frequency"),
+					"step_total_time_sec": self.shared_data.get("step_total_time_sec"),
+					"step_v_cap": self.shared_data.get("step_v_cap"),
 				}
 				# Only keep values that are present (not None)
 				filtered_package = {
@@ -83,10 +144,15 @@ class ConstantTelemetryWorker:
 					self._last_printed_signature = current_signature
 
 				# Fast loop telemetry updates
+				"""
 				self.shared_data["dc_voltage"] = 48.05
 				self.shared_data["dc_current"] = 5.21
 				self.shared_data["dc_power"] = round(48.05 * 5.21, 2)
 				self.shared_data["can_status"] = "Connected"
+				"""
+				if filtered_package["Operation_page"] == "OperationPage":
+					self.operation_mode()
+
 				#print(f"Running {t_start:.2f} seconds, Current Telemetry: Voltage={self.shared_data['dc_voltage']}, Current={self.shared_data['dc_current']}, Power={self.shared_data['dc_power']}")
 				dt = time.time() - t_start
 				sleep_time = 0.01 - dt
@@ -96,3 +162,7 @@ class ConstantTelemetryWorker:
 			except Exception as e:
 				print(f"[WORKER ERROR]: {e}")
 				time.sleep(0.1)
+
+	def operation_mode(self):
+		# Placeholder for future operation mode logic
+		pass
