@@ -1,0 +1,15 @@
+{
+    "test_direction": "Charge",
+    "charge_voltage": 0.0,
+    "charge_current": 0.0,
+    "cutoff_capacity": 0.0,
+    "cutoff_time": 0.0,
+    "cutoff_voltage": 0.0,
+    "cutoff_current": 0.0,
+    "cutoff_energy": 0.0,
+    "limit_discharge_amp": 0.0,
+    "limit_discharge_watt": 0.0,
+    "limit_charge_amp": 0.0,
+    "limit_charge_watt": 0.0,
+    "limit_setting_volt": 0.0
+}

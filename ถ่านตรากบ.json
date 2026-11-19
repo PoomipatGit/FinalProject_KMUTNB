@@ -1,0 +1,15 @@
+{
+    "capacity_ah": 1.0,
+    "full_voltage_v": 2.0,
+    "empty_voltage_v": 3.0,
+    "parallel": 4,
+    "series": 5,
+    "inner_resistance_mohm": 6.0,
+    "soc_high_pct": 7,
+    "soc_low_pct": 8,
+    "charge_current_max_a": 9.0,
+    "discharge_current_max_a": -10.0,
+    "init_soc_pct": 11,
+    "init_voc_v": 12.0,
+    "init_cap_ah": 13.0
+}

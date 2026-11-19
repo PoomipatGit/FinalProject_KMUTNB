@@ -66,7 +66,14 @@ class Batterysimulationpage(BasePage):
 		self.soc_low_val=0
 		self.chrg_amp_max_val = 0.00
 		self.dischrg_amp_max_val = -0.00
-		
+  
+		self.fullchrgvolt_val = 0.0
+		self.fullchrg_dischrg_ah_val = 0.0
+		self.expovolt_val = 0.0
+		self.expo_dischrg_ah_val = 0.0
+		self.nomvolt_val = 0.0
+		self.nom_dischrg_ah_val = 0.0
+  
 		self.soc_now_val = self.init_soc_val
 		self.full_volt_text = tk.StringVar()
 		self.empty_volt_text = tk.StringVar()
@@ -944,7 +951,7 @@ class Batterysimulationpage(BasePage):
 		popup.wait_visibility()
 		popup.grab_set()
 		# สร้าง Canvas และ Scrollbar (กำหนด scrollregion ลึก 850)
-		canvas = tk.Canvas(popup, bg=self.bgpopup, highlightthickness=0, scrollregion=(0, 0, 800, 850))
+		canvas = tk.Canvas(popup, bg=self.bgpopup, highlightthickness=0, scrollregion=(0, 0, 800, 1100))
 		scrollbar = tk.Scrollbar(popup, orient="vertical", command=canvas.yview)
 		canvas.configure(yscrollcommand=scrollbar.set)
 
@@ -953,7 +960,7 @@ class Batterysimulationpage(BasePage):
 		canvas.pack(side="left", fill="both", expand=True)
 
 		# Frame ด้านในที่มีขนาด กว้าง 870 ยาว 1000
-		content_frame = tk.Frame(canvas, bg=self.bgpopup, width=870, height=1000)
+		content_frame = tk.Frame(canvas, bg=self.bgpopup, width=870, height=1100)
 		canvas.create_window((0, 0), window=content_frame, anchor="nw")
 
 		# ฟังก์ชันรองรับการเลื่อนด้วยลูกกลิ้งเมาส์ (MouseWheel)
@@ -1528,7 +1535,252 @@ class Batterysimulationpage(BasePage):
 			fg="black"           
 		)
 		cap_init_title.place(x=10, y=85,width=140, height=40)
-	
+		#------------------------------------Discharge curve title----------------------------------
+		dischrgcurve_title = tk.Label(
+			content_frame, 
+			text="Discharge Curve Settings",                          
+			font=("Arial", 16), 
+			bg=self.bgpopup,            
+			fg="black"                      
+		)
+		dischrgcurve_title.place(x=110, y=740)
+		dischrgcurve_border_frame = tk.Frame(
+			content_frame,
+			bg=self.bgpopup,
+			highlightthickness=1,
+			highlightbackground="black", # สีกรอบเส้นขอบ
+		)
+		dischrgcurve_border_frame.place(x=80, y=755, width=630, height=215)
+		# สั่งให้กรอบลงไปอยู่ชั้นล่างสุด
+		dischrgcurve_border_frame.lower()
+		#------------------------------Vfull-----------------------------------------
+		def func_edit_Vfull(event=None):
+			raw_data = fullchrgvolt_edit.get()
+			try:
+				target_value = float(raw_data)
+				print(f"Set Vfull: {target_value}")
+			except ValueError:
+				print("ข้อผิดพลาด: กรุณากรอกเฉพาะตัวเลขเท่านั้น!")   
+		fullchrgvolt_edit = tk.Entry(
+			dischrgcurve_border_frame, 
+			font=("Arial", 14),
+			bg="#dce2e8",     
+			fg="black",    
+			insertbackground=self.bgpopup, 
+			relief="flat",
+			justify="center"  
+		)
+		fullchrgvolt_edit.insert(0, str(self.fullchrgvolt_val))
+		fullchrgvolt_edit.bind("<Return>", lambda event: (func_edit_Vfull(), popup.focus_set()))
+		fullchrgvolt_edit.place(x=180, y=25, width=80, height=40)
+		fullchrgvolt_unit = tk.Label(
+			dischrgcurve_border_frame, 
+			text="V",                          
+			font=("Arial", 14), 
+			bg=self.bgpopup,            
+			fg="black"                        
+		)
+		fullchrgvolt_unit.place(x=260, y=25, width=50, height=40)
+		fullchrgvolt_title = tk.Label(
+			dischrgcurve_border_frame,     
+			text="Full Charge V",
+			font=("Arial", 14),    
+			bg=self.bgpopup,
+			highlightthickness=1,          
+			highlightbackground="#ffffff", 
+			fg="black"           
+		)
+		fullchrgvolt_title.place(x=20, y=25,width=140, height=40)
+		#------------------------------Full charge Ah-----------------------------------------
+		def func_edit_Qfull(event=None):
+			raw_data = Qfull_edit.get()
+			try:
+				target_value = float(raw_data)
+				print(f"Set Qfull: {target_value}")
+			except ValueError:
+				print("ข้อผิดพลาด: กรุณากรอกเฉพาะตัวเลขเท่านั้น!")   
+		Qfull_edit = tk.Entry(
+			dischrgcurve_border_frame, 
+			font=("Arial", 14),
+			bg="#dce2e8",     
+			fg="black",    
+			insertbackground=self.bgpopup, 
+			relief="flat",
+			justify="center"  
+		)
+		Qfull_edit.insert(0, str(self.fullchrg_dischrg_ah_val))
+		Qfull_edit.bind("<Return>", lambda event: (func_edit_Qfull(), popup.focus_set()))
+		Qfull_edit.place(x=490, y=25, width=80, height=40)
+		Qfull_unit = tk.Label(
+			dischrgcurve_border_frame, 
+			text="Ah",
+			font=("Arial", 14), 
+			bg=self.bgpopup,            
+			fg="black"                        
+		)
+		Qfull_unit.place(x=570, y=25, width=50, height=40)
+		Qfull_title = tk.Label(
+			dischrgcurve_border_frame,     
+			text="Full Charge Ah",
+			font=("Arial", 14),    
+			bg=self.bgpopup,
+			highlightthickness=1,          
+			highlightbackground="#ffffff", 
+			fg="black"           
+		)
+		Qfull_title.place(x=340, y=25,width=140, height=40)
+		#------------------------------Vexp-----------------------------------------
+		def func_edit_expo_volt(event=None):
+			raw_data = expo_volt_edit.get()
+			try:
+				target_value = float(raw_data)
+				print(f"Set Exponential Zone Voltage: {target_value}")
+			except ValueError:
+				print("ข้อผิดพลาด: กรุณากรอกเฉพาะตัวเลขเท่านั้น!")   
+		expo_volt_edit = tk.Entry(
+			dischrgcurve_border_frame, 
+			font=("Arial", 14),
+			bg="#dce2e8",     
+			fg="black",    
+			insertbackground=self.bgpopup, 
+			relief="flat",
+			justify="center"  
+		)
+		expo_volt_edit.insert(0, str(self.expovolt_val))
+		expo_volt_edit.bind("<Return>", lambda event: (func_edit_expo_volt(), popup.focus_set()))
+		expo_volt_edit.place(x=180, y=85, width=80, height=40)
+		expo_volt_unit = tk.Label(
+			dischrgcurve_border_frame, 
+			text="V",
+			font=("Arial", 14), 
+			bg=self.bgpopup,            
+			fg="black"                        
+		)
+		expo_volt_unit.place(x=260, y=85, width=50, height=40)
+		expo_volt_title = tk.Label(
+			dischrgcurve_border_frame,     
+			text="Expo Zone Volt",
+			font=("Arial", 14),    
+			bg=self.bgpopup,
+			highlightthickness=1,          
+			highlightbackground="#ffffff", 
+			fg="black"           
+		)
+		expo_volt_title.place(x=10, y=85,width=170, height=40)
+		#------------------------------Qexp-----------------------------------------
+		def func_edit_expo_ah(event=None):
+			raw_data = expo_ah_edit.get()
+			try:
+				target_value = float(raw_data)
+				print(f"Set Exponential Zone Capacity: {target_value}")
+			except ValueError:
+				print("ข้อผิดพลาด: กรุณากรอกเฉพาะตัวเลขเท่านั้น!")   
+		expo_ah_edit = tk.Entry(
+			dischrgcurve_border_frame, 
+			font=("Arial", 14),
+			bg="#dce2e8",     
+			fg="black",    
+			insertbackground=self.bgpopup, 
+			relief="flat",
+			justify="center"  
+		)
+		expo_ah_edit.insert(0, str(self.expo_dischrg_ah_val))
+		expo_ah_edit.bind("<Return>", lambda event: (func_edit_expo_ah(), popup.focus_set()))
+		expo_ah_edit.place(x=490, y=85, width=80, height=40)
+		expo_ah_unit = tk.Label(
+			dischrgcurve_border_frame, 
+			text="Ah",
+			font=("Arial", 14), 
+			bg=self.bgpopup,            
+			fg="black"                        
+		)
+		expo_ah_unit.place(x=570, y=85, width=50, height=40)
+		expo_ah_title = tk.Label(
+			dischrgcurve_border_frame,     
+			text="Expo Zone Ah",
+			font=("Arial", 14),    
+			bg=self.bgpopup,
+			highlightthickness=1,          
+			highlightbackground="#ffffff", 
+			fg="black"           
+		)
+		expo_ah_title.place(x=320, y=85,width=170, height=40)
+#------------------------------Vnom-----------------------------------------
+		def func_edit_nom_volt(event=None):
+			raw_data = nom_volt_edit.get()
+			try:
+				target_value = float(raw_data)
+				print(f"Set Nominal Voltage: {target_value}")
+			except ValueError:
+				print("ข้อผิดพลาด: กรุณากรอกเฉพาะตัวเลขเท่านั้น!")   
+		nom_volt_edit = tk.Entry(
+			dischrgcurve_border_frame, 
+			font=("Arial", 14),
+			bg="#dce2e8",     
+			fg="black",    
+			insertbackground=self.bgpopup, 
+			relief="flat",
+			justify="center"  
+		)
+		nom_volt_edit.insert(0, str(self.nomvolt_val))
+		nom_volt_edit.bind("<Return>", lambda event: (func_edit_nom_volt(), popup.focus_set()))
+		nom_volt_edit.place(x=180, y=145, width=80, height=40)
+		nom_volt_unit = tk.Label(
+			dischrgcurve_border_frame, 
+			text="V",
+			font=("Arial", 14), 
+			bg=self.bgpopup,            
+			fg="black"                        
+		)
+		nom_volt_unit.place(x=260, y=145, width=50, height=40)
+		nom_volt_title = tk.Label(
+			dischrgcurve_border_frame,     
+			text="Nominal Voltage",
+			font=("Arial", 14),    
+			bg=self.bgpopup,
+			highlightthickness=1,          
+			highlightbackground="#ffffff", 
+			fg="black"           
+		)
+		nom_volt_title.place(x=10, y=145,width=170, height=40)
+		#------------------------------Qnom-----------------------------------------
+		def func_edit_nom_ah(event=None):
+			raw_data = nom_ah_edit.get()
+			try:
+				target_value = float(raw_data)
+				print(f"Set Nominal Capacity: {target_value}")
+			except ValueError:
+				print("ข้อผิดพลาด: กรุณากรอกเฉพาะตัวเลขเท่านั้น!")   
+		nom_ah_edit = tk.Entry(
+			dischrgcurve_border_frame, 
+			font=("Arial", 14),
+			bg="#dce2e8",     
+			fg="black",    
+			insertbackground=self.bgpopup, 
+			relief="flat",
+			justify="center"  
+		)
+		nom_ah_edit.insert(0, str(self.nom_dischrg_ah_val))
+		nom_ah_edit.bind("<Return>", lambda event: (func_edit_nom_ah(), popup.focus_set()))
+		nom_ah_edit.place(x=490, y=145, width=80, height=40)
+		nom_ah_unit = tk.Label(
+			dischrgcurve_border_frame, 
+			text="Ah",
+			font=("Arial", 14), 
+			bg=self.bgpopup,            
+			fg="black"                        
+		)
+		nom_ah_unit.place(x=570, y=145, width=50, height=40)
+		nom_ah_title = tk.Label(
+			dischrgcurve_border_frame,     
+			text="Nominal Capacity",
+			font=("Arial", 14),    
+			bg=self.bgpopup,
+			highlightthickness=1,          
+			highlightbackground="#ffffff", 
+			fg="black"           
+		)
+		nom_ah_title.place(x=320, y=145,width=170, height=40)
 		#--------------------------------save button----------------------------------------
 		def save_edit():
 			try :
@@ -1545,9 +1797,16 @@ class Batterysimulationpage(BasePage):
 				self.init_soc_val = int(soc_init_edit.get())
 				self.init_voc_val = float(voc_init_edit.get())
 				self.init_cap_val = float(cap_init_edit.get())
+				self.fullchrgvolt_val = float(fullchrgvolt_edit.get())
+				self.fullchrg_dischrg_ah_val = float(Qfull_edit.get())
+				self.expovolt_val = float(expo_volt_edit.get())
+				self.expo_dischrg_ah_val = float(expo_ah_edit.get())
+				self.nomvolt_val = float(nom_volt_edit.get())
+				self.nom_dischrg_ah_val = float(nom_ah_edit.get())
 				if not self.running_time:
 					self.soc_now_val = int(soc_init_edit.get())
 				print("Save!")
+				#print(self.fullchrg_dischrg_ah_val)
 			except ValueError:
 				print("ข้อผิดพลาด: กรุณากรอกเฉพาะตัวเลข!")
 		save_button = tk.Button(
@@ -1566,7 +1825,7 @@ class Batterysimulationpage(BasePage):
 			relief="flat",             
 			cursor="hand2"             
 		)
-		save_button.place(x=700, y=800, anchor="center")
+		save_button.place(x=700, y=1050, anchor="center")
 		#--------------------------------------------------------------------------
 
 		#-------------------------------------------------------------------------
@@ -1591,7 +1850,13 @@ class Batterysimulationpage(BasePage):
 			"discharge_current_max_a": float(self.dischrg_amp_max_val),
 			"init_soc_pct": int(self.init_soc_val),
 			"init_voc_v": float(self.init_voc_val),
-			"init_cap_ah": float(self.init_cap_val)
+			"init_cap_ah": float(self.init_cap_val),
+			"full_charge_voltage_v": float(self.fullchrgvolt_val),
+			"full_charge_discharge_capacity_ah": float(self.fullchrg_dischrg_ah_val),
+			"exponential_zone_voltage_v": float(self.expovolt_val),
+			"exponential_zone_discharge_capacity_ah": float(self.expo_dischrg_ah_val),
+			"nominal_voltage_v": float(self.nomvolt_val),
+			"nominal_discharge_capacity_ah": float(self.nom_dischrg_ah_val)
 		}
 
 	def load_config_data(self, data: dict):
@@ -1609,7 +1874,12 @@ class Batterysimulationpage(BasePage):
 		self.init_soc_val = data.get("init_soc_pct", self.init_soc_val)
 		self.init_voc_val = data.get("init_voc_v", self.init_voc_val)
 		self.init_cap_val = data.get("init_cap_ah", self.init_cap_val)
-		
+		self.fullchrgvolt_val = data.get("full_charge_voltage_v", self.fullchrgvolt_val)
+		self.fullchrg_dischrg_ah_val = data.get("full_charge_discharge_capacity_ah", self.fullchrg_dischrg_ah_val)
+		self.expovolt_val = data.get("exponential_zone_voltage_v", self.expovolt_val)
+		self.expo_dischrg_ah_val = data.get("exponential_zone_discharge_capacity_ah", self.expo_dischrg_ah_val)
+		self.nomvolt_val = data.get("nominal_voltage_v", self.nomvolt_val)
+		self.nom_dischrg_ah_val = data.get("nominal_discharge_capacity_ah", self.nom_dischrg_ah_val)
 		if not self.running_time:
 			self.soc_now_val = self.init_soc_val
 
