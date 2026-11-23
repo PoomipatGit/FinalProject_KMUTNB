@@ -6,6 +6,7 @@ import os
 import json
 from tkinter import filedialog, messagebox
 import Filemanager  # or file_manager if that is your module name
+from BatteryModel import BatteryModel
 
 class Batterysimulationpage(BasePage):
 	def __init__(self, parent, controller):
@@ -869,6 +870,7 @@ class Batterysimulationpage(BasePage):
 
 	def run_stop_setup(self):
 		if self.run_button.cget("text") == "RUN":
+			self.run_battery()
 			self.run_button.config(text="STOP", bg="#FF4D4D", activebackground="#CC0000")
 			self.running_time = True
 			self.sync_to_controller()
@@ -1914,7 +1916,45 @@ class Batterysimulationpage(BasePage):
 			print(f"[BATTERY MODEL LOADED]: {file_path}")
 		except Exception as e:
 			messagebox.showerror("Error", f"Failed to load battery model:\n{e}")
-#if __name__ == "__main__":
+
+	def run_battery(self):
+		self.battery_model = BatteryModel(self)
+
+		print("\n========== Battery Model ==========")
+
+		# Battery Parameters
+		print("Capacity:", self.battery_model.capacity_ah)
+		print("Full Voltage:", self.battery_model.full_voltage_v)
+		print("Empty Voltage:", self.battery_model.empty_voltage_v)
+
+		# Battery Pack
+		print("Parallel:", self.battery_model.parallel)
+		print("Series:", self.battery_model.series)
+		print("Inner Resistance:", self.battery_model.inner_resistance_mohm)
+
+		# Protection Parameters
+		print("SOC High:", self.battery_model.soc_high_pct)
+		print("SOC Low:", self.battery_model.soc_low_pct)
+		print("Charge Current Max:", self.battery_model.charge_current_max_a)
+		print("Discharge Current Max:", self.battery_model.discharge_current_max_a)
+
+		# Initial Parameters
+		print("Initial SOC:", self.battery_model.init_soc_pct)
+		print("Initial VOC:", self.battery_model.init_voc_v)
+		print("Initial Capacity:", self.battery_model.init_cap_ah)
+
+		# Discharge Curve Parameters
+		print("Full Charge Voltage:", self.battery_model.fullchrgvolt_val)
+		print("Full Charge Ah:", self.battery_model.fullchrg_ah_val)
+
+		print("Exponential Zone Voltage:", self.battery_model.expovolt_val)
+		print("Exponential Zone Ah:", self.battery_model.expo_ah_val)
+
+		print("Nominal Voltage:", self.battery_model.nomvolt_val)
+		print("Nominal Ah:", self.battery_model.nom_ah_val)
+
+		print("===================================\n")
+	#if __name__ == "__main__":
 	# 1. สร้าง Root Window ขึ้นมาเป็น Parent ชั่วคราว
 	#root = tk.Tk()
 	#root.title("Test: Batterysimulationpage")
