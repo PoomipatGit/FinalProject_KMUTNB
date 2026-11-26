@@ -75,3 +75,12 @@ DC side control
  in CV only show Voltage control block (only the value) and make it scrollable, up to increase down to decrease
  in CC only show current control block (only the value) and make it scrollable, up to increase down to decrease
  in CP only show current control block (with P,Q,S) and make it scrollable, up to increase down to decrease
+
+
+The required files are
+Fixed -> CC,CV,CP -> Seamless,Src,Snk
+List -> CC,CV,CP -> Seamless,Src,Snk
+Step -> CC,CV,CP -> Seamless,Src,Snk
+
+Default command for driver - must have read,set,reset,Power on-off (islanding maybe)
+Driver file -tell model, default filename, encoding

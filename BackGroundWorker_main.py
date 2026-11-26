@@ -4,6 +4,10 @@ import time
 import json  # Cleaner and safer than pprint for dictionaries
 import importlib.util
 import os
+import pandas as pd
+import can
+import re
+
 
 def load_driver_class(driver_path: str):
 	"""Dynamically loads CanbusProtocol from any selected driver .py file."""
@@ -24,7 +28,24 @@ def load_driver_class(driver_path: str):
 	module = importlib.util.module_from_spec(spec)
 	spec.loader.exec_module(module)
 	return module.CanbusProtocol
+def encode_voltage_to_can_bytes(value):
+    # Apply your protocol's scale and byte order here.
+    pass
 
+def encode_current_to_can_bytes(value):
+    # Apply your protocol's scale and byte order here.
+    pass
+
+VALUE_CONFIG = {
+    "DCV": {
+        "package_key": "target_voltage",
+        "encoder": encode_voltage_to_can_bytes,
+    },
+    "DCA": {
+        "package_key": "target_current",
+        "encoder": encode_current_to_can_bytes,
+    },
+}
 class ConstantTelemetryWorker:
 
 	def __init__(self, shared_data: dict, data_queue: queue.Queue = None):
@@ -33,6 +54,8 @@ class ConstantTelemetryWorker:
 		self.is_running = False
 		self.thread = None
 		self._last_printed_signature = None
+		self.background_warning = []
+		self.shared_data["background_warning"] = self.background_warning
 
 	def start(self):
 		if self.is_running:
@@ -151,7 +174,7 @@ class ConstantTelemetryWorker:
 				self.shared_data["can_status"] = "Connected"
 				"""
 				if filtered_package["Operation_page"] == "OperationPage":
-					self.operation_mode()
+					self.operation_mode(filtered_package)
 
 				#print(f"Running {t_start:.2f} seconds, Current Telemetry: Voltage={self.shared_data['dc_voltage']}, Current={self.shared_data['dc_current']}, Power={self.shared_data['dc_power']}")
 				dt = time.time() - t_start
@@ -163,6 +186,102 @@ class ConstantTelemetryWorker:
 				print(f"[WORKER ERROR]: {e}")
 				time.sleep(0.1)
 
-	def operation_mode(self):
-		# Placeholder for future operation mode logic
+	def operation_mode(self, filtered_package: dict):
+		key = (
+			filtered_package.get("mode"),
+			filtered_package.get("operation_direction"),
+			filtered_package.get("control_sub_mode"),
+		)
+		dispatch_table = {
+			("Fixed", "Source", "CV"): self._handle_fixed_source_cv,
+			("Fixed", "Source", "CC"): self._handle_fixed_source_cc,
+			("Fixed", "Source", "CP"): self._handle_fixed_source_cp,
+			#("Fixed", "Sink (On-Grid)", "CV"): self._handle_fixed_sink_ongrid_cv,
+		}
+
+		handler = dispatch_table.get(key)
+		if handler:
+			handler(filtered_package)
+		else:
+			print(f"[WARNING]: Unsupported operation combination -> {key}")
+
+	def _handle_fixed_source_cv(self, pkg: dict):
+		# Implement logic for Fixed CV Source
+		#check all active field if i have all required field or not
+		#check file first if the sequence file is correct or not, if not reassign the correct one
+		#call df_filler_fixed
+			#take sequence file, extract to df, fill the blank with value, translate the default command
+				#run_duration value = time to repeat the comman above (cut off at run_duration above)
+				#total_run_duration = total time to run the ahole command file above (if not found then loop forever) shut down after done
+				#fill in the blank with the HEX value in the target_voltage,target_current,target_power
+			#run will be control with background logic
+
+		#call
+			#actual can command
+		base_dir = os.path.dirname(os.path.abspath(__file__))
+		expected_file = "Fixed_src_CV.csv"
+		expected_path = os.path.join(base_dir, "Required", expected_file)
+
+		seq_path = pkg.get("active_sequence_csv", "")
+		if os.path.basename(str(seq_path)) != expected_file:
+			if os.path.basename(str(seq_path)) != expected_file:
+				warn_msg = f"Expected '{expected_file}', got '{os.path.basename(str(seq_path))}'. Reassigning to '{expected_file}'."
+				print(f"[WARNING]: {warn_msg}")
+				self.background_warning.append(warn_msg)
+				seq_path = expected_path
+				pkg["active_sequence_csv"] = seq_path
+				self.shared_data["active_sequence_csv"] = seq_path
+
+		if not os.path.exists(seq_path):
+			warn_msg = f"Sequence file '{seq_path}' does not exist!"
+			print(f"[WARNING]: {warn_msg}")
+			self.background_warning.append(warn_msg)
+			return
+
+		df_seq = pd.read_csv(seq_path)
+	
+		
 		pass
+
+	def _handle_fixed_source_cc(self, pkg: dict):
+		# Implement logic for Fixed CC Source
+		pass
+
+	def _handle_fixed_source_cp(self, pkg: dict):
+		# Implement logic for Fixed CP Source
+		pass
+
+	def df_filler_fixed(self, df: pd.DataFrame, required_columns: list) -> pd.DataFrame:
+		"""Fills missing columns in the DataFrame with default values."""
+		for col in required_columns:
+			if col not in df.columns:
+				df[col] = "-"
+		#for col in df.rows
+	
+		return df
+
+	def fill_xx_placeholders(can_data: str, hex_data: str) -> str:
+		tokens = can_data.split()
+		hex_bytes = hex_data.split()
+
+		# Validate that each supplied item is one byte of hexadecimal data.
+		if any(not re.fullmatch(r"[0-9A-Fa-f]{2}", byte) for byte in hex_bytes):
+			raise ValueError("hex_data must contain space-separated 2-digit hex bytes")
+
+		placeholder_positions = [
+			index for index, token in enumerate(tokens)
+			if token.lower() == "xx"
+		]
+
+		if not placeholder_positions:
+			raise ValueError("No xx placeholders found in CAN Data")
+		if len(hex_bytes) > len(placeholder_positions):
+			raise ValueError(
+				f"{len(hex_bytes)} bytes do not fit in "
+				f"{len(placeholder_positions)} xx placeholders"
+			)
+
+		for position, byte in zip(placeholder_positions, hex_bytes):
+			tokens[position] = byte.upper()
+
+		return " ".join(tokens)

@@ -1,0 +1,10 @@
+Name,TxRx,Identifier,CAN Data,Value,Comment,Action,Result
+Reset_DC_OV,Tx,0C 20 07 80,03 00 00 31 00 01 00 00,-,Step 1: Clear latched DC overvoltage faults,RUN,
+Reset_DC_UV_Rect,Tx,0C 20 07 80,03 00 00 25 00 01 00 00,-,Step 2: Clear latched DC undervoltage faults,RUN,
+Mode_Rectifier,Tx,0C 20 07 80,03 00 00 2F 00 02 00 00,-,Step 3: Set mode to Rectifier,RUN,
+Set_DC_Volt,Tx,0C 20 07 80,03 00 00 77 xx xx xx xx,DCV,Step 4: Set DC link voltage,RUN,
+Set_DC_Curr,Tx,0C 20 07 80,03 00 00 79 xx xx xx xx,DCA,Step 5: Set DC current limit to +8A (8000 mA),RUN,
+Power_ON,Tx,0C 20 07 80,03 00 00 30 00 00 00 00,-,Step 6: Enable module power stage (ON),RUN,
+Read_DC_Volt_Curr,Tx,0C 20 07 80,10 00 00 0F 00 00 00 00,-,Step 7: Read actual DC voltage & current,RUN,
+run_duration,-,-,-,-,Set run duration of current sequence,-,
+run_total_duration,-,-,-,-,Set total run duration of current sequence,-,
