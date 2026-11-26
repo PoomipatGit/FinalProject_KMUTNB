@@ -6,11 +6,13 @@ import threading
 import time
 import pandas as pd  
 import re
+import queue
 from canbusprotocal_niuera import CanbusProtocol
 
 # ไฟล์ csv 1 ไฟล์คือการส่งข้อมูลที่ต้องการเป็น set 1 set โดยจะต้องกำหนดเวลาเท่ากันทั้งไฟล์ เช่นจะ set V ต้อง 1.set v 2. ปล่อย v 3. อ่าน v รวม 3 ขั้นตอนใน 1 ไฟล์ เวลาค่าเดียวกัน
 class CSVLogger:
     def __init__(self, file_path=None):
+        self.result_queue = queue.Queue()
         self.filepath = file_path
         self.canprotocal = CanbusProtocol()
     def check_filepath(self, file_path):
@@ -201,7 +203,7 @@ class CSVLogger:
         return self.loop_all_can_commands_from_df(df, interval=interval, timeout=timeout)
     
     def loop_read_commands_from_df(self,df,interval=0.1, timeout=1.0): #df จาก split_timeandvalue # ส่งคำสั่ง Set (0x03) แค่รอบแรกครั้งเดียว แล้ววนลูปส่งเฉพาะคำสั่ง Read จนครบเวลา
-        self.is_running = True
+        self.is_running = True                                          #ถใส่ data เป็น xx xx xx xx ได้เลย
         self.loop_log = []
         # เปลี่ยนจาก iloc[0] เป็น .max() เพื่อดึงเวลาไม่ว่าจะอยู่แถวไหนของไฟล์ CSV
         if 'Sec' in df.columns and not df.empty and df['Sec'].max() > 0:
@@ -211,100 +213,135 @@ class CSVLogger:
         def _running():
             start_time = time.time()
             loop_count = 0
-            while self.is_running and (time.time() - start_time) < total_time:
-                
-                for index, row in df.iterrows():
-                    if not self.is_running or (time.time() - start_time) >= total_time:
-                            break
-                    # ดึงข้อมูลจากคอลัมน์ต่างๆ ในแถวปัจจุบันมาเก็บใส่ตัวแปร เพื่อแสดงผล และส่ง can message
-                    name = row['Name']
-                    tx_rx = row['TxRx']
-                    identifier = row['Identifier']
-                    raw_can_data = str(row['CAN Data']).replace('xx', '00').replace('XX', '00')
-                    value = row['Value']
-                    sec_val = row['Sec']
-                    comment = row['Comment']
-                    action = row['Action']
-                    result = row['Result']
+            try:
+                while self.is_running and (time.time() - start_time) < total_time: #ลูปเวลา
+                    for index, row in df.iterrows(): #ลูปแต่ละแถวของ DataFrame
+                        if not self.is_running or (time.time() - start_time) >= total_time:
+                                break
+                        # ดึงข้อมูลจากคอลัมน์ต่างๆ ในแถวปัจจุบันมาเก็บใส่ตัวแปร เพื่อแสดงผล และส่ง can message
+                        name = row['Name']
+                        tx_rx = row['TxRx']
+                        identifier = row['Identifier']
+                        raw_can_data = str(row['CAN Data']).replace('xx', '00').replace('XX', '00')
+                        value = row['Value']
+                        sec_val = row['Sec']
+                        comment = row['Comment']
+                        action = row['Action']
+                        result = row['Result']
 
-                    print(f"\n=== Run row {index}: {name} ===")
-                    if str(tx_rx).strip().upper() != "TX":
-                        print(f"Skip {name}: Not Tx")
-                        continue
-                    if identifier == "-" or raw_can_data == "-":
-                        print(f"Skip {name}: Missing Identifier or CAN Data")
-                        continue
-                    can_data = raw_can_data  # ค่าเริ่มต้น
-                    try:
-                        if raw_can_data != "-":
-                            # แยกชุดข้อมูล CAN Data ออกมาเป็น List ของไบต์ (รองรับทั้งแบบช่องว่างคั่นหรือติดกัน)
-                            parts = str(raw_can_data).strip().split()
-                            if len(parts) == 1 and len(parts[0]) >= 2:
-                                # กรณีเขียนติดกัน เช่น "03000079..." ให้ตัดแบ่งทีละ 2 ตัวอักษร
-                                hex_bytes = [parts[0][i:i+2] for i in range(0, len(parts[0]), 2)]
-                            else:
-                                hex_bytes = parts
+                        print(f"\n=== Run row {index}: {name} ===")
+                        if str(tx_rx).strip().upper() != "TX":
+                            print(f"Skip {name}: Not Tx")
+                            continue
+                        if identifier == "-" or raw_can_data == "-":
+                            print(f"Skip {name}: Missing Identifier or CAN Data")
+                            continue
+                        can_data = raw_can_data  # ค่าเริ่มต้น
+                        try:
+                            if raw_can_data != "-":
+                                # แยกชุดข้อมูล CAN Data ออกมาเป็น List ของไบต์ (รองรับทั้งแบบช่องว่างคั่นหรือติดกัน)
+                                parts = str(raw_can_data).strip().split()
+                                if len(parts) == 1 and len(parts[0]) >= 2:
+                                    # กรณีเขียนติดกัน เช่น "03000079..." ให้ตัดแบ่งทีละ 2 ตัวอักษร
+                                    hex_bytes = [parts[0][i:i+2] for i in range(0, len(parts[0]), 2)]
+                                else:
+                                    hex_bytes = parts
+                                    
+                                #ส่วนข้าม set
+                                if len(hex_bytes) > 0 and hex_bytes[0].upper() == "03" and loop_count > 0:
+                                    print(f"Skip {name}: Set command (0x03) already executed")
+                                    continue  # กระโดดไปแถวถัดไปทันที ไม่ต้องสร้างคำสั่งและไม่ต้องส่งซ้ำ
                                 
-                            #ส่วนข้าม set
-                            if len(hex_bytes) > 0 and hex_bytes[0].upper() == "03" and loop_count > 0:
-                                print(f"Skip {name}: Set command (0x03) already executed")
-                                continue  # กระโดดไปแถวถัดไปทันที ไม่ต้องสร้างคำสั่งและไม่ต้องส่งซ้ำ
-                            
-                            # ตรวจสอบว่า Byte ที่ 0 (index 0) มีค่าเป็น '03' และมีค่า Value ครบถ้วน
-                            if len(hex_bytes) >= 4 and hex_bytes[0].upper() == "03" and value != "-":
-                                reg_address = int(hex_bytes[2] + hex_bytes[3], 16)
-                                decimal_val = float(value)
-                                sub_mode_val = int(row.get("SubMode", 0))
+                                # ตรวจสอบว่า Byte ที่ 0 (index 0) มีค่าเป็น '03' และมีค่า Value ครบถ้วน
+                                if len(hex_bytes) >= 4 and hex_bytes[0].upper() == "03" and value != "-":
+                                    reg_address = int(hex_bytes[2] + hex_bytes[3], 16)
+                                    decimal_val = float(value)
+                                    sub_mode_val = int(row.get("SubMode", 0))
 
-                                # เรียกใช้ build_set_command เพื่อสร้างคำสั่งใหม่
-                                generated_can_data = self.canprotocal.build_set_command(
-                                    reg_address, decimal_val, sub_mode=sub_mode_val
-                                )
-                                # แปลงผลลัพธ์เป็น Hex string สำหรับส่งออก
-                                can_data = " ".join([f"{b:02X}" for b in generated_can_data])
-                                
-                    except Exception as e:
-                        print(
-                            f"Error building set command for row {index}: {e}"
+                                    # เรียกใช้ build_set_command เพื่อสร้างคำสั่งใหม่
+                                    generated_can_data = self.canprotocal.build_set_command(
+                                        reg_address, decimal_val, sub_mode=sub_mode_val
+                                    )
+                                    # แปลงผลลัพธ์เป็น Hex string สำหรับส่งออก
+                                    can_data = " ".join([f"{b:02X}" for b in generated_can_data])
+                                    
+                        except Exception as e:
+                            print(
+                                f"Error building set command for row {index}: {e}"
+                            )
+                            continue
+                        # ก่อนส่ง CAN
+                        self.result_queue.put({
+                            "idx": index,
+                            "name": name,
+                            "status": "SENDING...",
+                            "response": None
+                        })
+                        # ส่งข้อมูล CAN และรอรับ Response
+                        response = self.canprotocal.read_once_fromgui(
+                            can_id=identifier,
+                            payload=can_data,
+                            timeout=timeout
                         )
-                        continue
-                    
-                    # ส่งข้อมูล CAN และรอรับ Response
+                        self.result_queue.put({
+                            "idx": index,
+                            "name": row["Name"],
+                            "identifier": identifier,
+                            "can_data": can_data,
+                            "response": response,
+                            "status": "RESPONSE" if response is not None else "TIMEOUT"
+                        })
+                        if response is not None:
+                            res_id_hex, res_data_hex = response
+                            print("Success!")
+                        else:
+                            res_id_hex = "-"
+                            res_data_hex = "-"
+                            print("Timeout!")
+
+                        self.loop_log.append({
+                            "Time": round(time.time() - start_time, 3),
+                            "Name": name,
+                            "TxRx": tx_rx,
+                            "Identifier": identifier,
+                            "CAN Data": can_data,
+                            "Response ID": res_id_hex,
+                            "Response Data": res_data_hex,
+                            "Value": value,
+                            "Sec": sec_val,
+                            "Comment": comment,
+                            "Action": action,
+                            "Result": result
+                        })
+                        time.sleep(interval)
+                    loop_count += 1
+                    print(f"loop count: {loop_count}")
+            finally:
+                try:
+                    print("\n=== Sending shutdown command... ===")
+
                     response = self.canprotocal.read_once_fromgui(
                         can_id=identifier,
-                        payload=can_data,
+                        payload="03 00 00 30 00 01 00 00",
                         timeout=timeout
                     )
+
                     if response is not None:
-                        res_id_hex, res_data_hex = response
-                        print("Success!")
+                        print("Shutdown response received")
                     else:
-                        res_id_hex = "-"
-                        res_data_hex = "-"
-                        print("Timeout!")
-                        
-                    self.loop_log.append({
-                        "Time": round(time.time() - start_time, 3),
-                        "Name": name,
-                        "TxRx": tx_rx,
-                        "Identifier": identifier,
-                        "CAN Data": can_data,
-                        "Response ID": res_id_hex,
-                        "Response Data": res_data_hex,
-                        "Value": value,
-                        "Sec": sec_val,
-                        "Comment": comment,
-                        "Action": action,
-                        "Result": result
-                    })
-                    time.sleep(interval)
-                loop_count += 1
-            self.is_running = False
-            self.result_df = pd.DataFrame(self.loop_log)
-            print("\n--- CAN DataFrame loop finished ---")
+                        print("Warning: Shutdown not confirmed")
+
+                except Exception as shutdown_err:
+                    print(f"Shutdown error: {shutdown_err}")
+
+                finally:
+                    self.is_running = False
+                    self.result_df = pd.DataFrame(self.loop_log)
+                    print("\n--- CAN DataFrame loop finished ---")
         thread = threading.Thread(target=_running, daemon=True)
         thread.start()
         return thread
+    
     def complete_loop_read_fromgui(self,file_path=None, interval=0.1, timeout=1.0): #วนลูปทั้งไฟล์ csv และส่ง can message ตามลำดับ
             df = self.split_timeandvalue(self.readcsv_to_df(file_path))
             return self.loop_read_commands_from_df(df, interval=interval, timeout=timeout)
